@@ -74,7 +74,7 @@ This README outlines the steps to set up and run GradeLens, both:
    ```
 4. **Run the FastAPI Server**
    ```bash
-   uvicorn main:app --reload
+   uvicorn app.main:app --reload
    ```
    The API will be accessible at:
    [http://localhost:8000](http://localhost:8000)
