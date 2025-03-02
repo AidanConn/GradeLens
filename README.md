@@ -229,9 +229,6 @@ docker-compose down
 
 ## 3. Additional Tips
 
-- **Database Migrations**  
-  If you plan on using a real database (e.g., PostgreSQL), update the `DATABASE_URL` environment variable accordingly, install the necessary database drivers in your `requirements.txt`, and add migration scripts (e.g., Alembic) as needed.
-
 - **HTTPS**  
   For local development, HTTP is typically fine. For production, consider configuring TLS/HTTPS either at the Docker level (by adjusting the Nginx config) or behind a reverse proxy.
 
