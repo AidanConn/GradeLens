@@ -1,4 +1,3 @@
-# language: python
 from fastapi import FastAPI, APIRouter, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
