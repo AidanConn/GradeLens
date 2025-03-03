@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the code
 COPY . .
 
+# Create the uploads directory
+RUN mkdir -p /app/uploads
+
 # Expose port for the API
 EXPOSE 8000
 

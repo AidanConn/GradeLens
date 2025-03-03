@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+# language: python
+from fastapi import FastAPI, APIRouter, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
+import os
 
 app = FastAPI(title="Your API")
 
@@ -21,7 +24,49 @@ app.add_middleware(
 async def root():
     return {"message": "Welcome to your FastAPI application!"}
 
-# Import and include routers
-# from app.routers import items, users
-# app.include_router(items.router)
-# app.include_router(users.router)
+# Define the router
+router = APIRouter()
+
+UPLOAD_DIRECTORY = "/app/uploads"
+
+# Ensure the upload directory exists
+os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
+
+@router.post("/uploadfile/")
+async def upload_file(file: UploadFile = File(...)):
+    file_location = os.path.join(UPLOAD_DIRECTORY, file.filename)
+    with open(file_location, "wb") as f:
+        f.write(await file.read())
+    return {"filename": file.filename, "content_type": file.content_type, "location": file_location}
+
+# New endpoint for mass upload of files
+@router.post("/mass_upload/")
+async def mass_upload(files: List[UploadFile] = File(...)):
+    """
+    Mass upload endpoint for files with extensions: .run, .grp, .sec, .lst.
+    
+    TODO:
+    - Parse .run file: should contain a RUN NAME and a reference to a .grp file.
+    - Parse .grp file: should contain a course name and references to .sec files.
+    - Parse .sec file: should contain a section name, credits, and data.
+    - Parse .lst file: additional list file processing if needed.
+    """
+    results = []
+    for file in files:
+        file_location = os.path.join(UPLOAD_DIRECTORY, file.filename)
+        with open(file_location, "wb") as f:
+            f.write(await file.read())
+        # Here you can add further processing based on file extension
+        # For example:
+        # if file.filename.endswith('.run'):
+        #     process_run_file(file_location)
+        results.append({
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "location": file_location
+        })
+    # Return list of all uploaded files' details
+    return results
+
+# Include the router with a prefix
+app.include_router(router, prefix="/api")
