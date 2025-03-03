@@ -56,8 +56,7 @@ async def mass_upload(files: List[UploadFile] = File(...)):
         file_location = os.path.join(UPLOAD_DIRECTORY, file.filename)
         with open(file_location, "wb") as f:
             f.write(await file.read())
-        # Here you can add further processing based on file extension
-        # For example:
+        # This where the processing of the files would happen
         # if file.filename.endswith('.run'):
         #     process_run_file(file_location)
         results.append({
