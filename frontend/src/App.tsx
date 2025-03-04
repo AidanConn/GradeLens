@@ -1,14 +1,15 @@
+// language: ts
 import { FileUpload } from './components/FileUpload';
-
-import './App.css'
+import { RunFilesList } from './components/RunFilesList';
+import './App.css';
 
 function App() {
-
   return (
     <>
-     <FileUpload />
+      <FileUpload />
+      <RunFilesList />
     </>
-  )
+  );
 }
 
-export default App
+export default App;

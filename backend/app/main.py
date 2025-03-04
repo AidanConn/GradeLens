@@ -8,7 +8,7 @@ app = FastAPI(title="Your API")
 # Configure CORS
 origins = [
     "http://localhost:3000",  # React app
-    "http://localhost:8000",  # Swagger UI
+    "http://localhost:8000",  # Python FastAPI app
 ]
 
 app.add_middleware(
@@ -67,6 +67,16 @@ async def mass_upload(files: List[UploadFile] = File(...)):
             "location": file_location
         })
     return results
+
+@router.get("/run_files/")
+async def list_run_files():
+    # List all files in the UPLOAD_DIRECTORY that end with .run
+    run_files = [
+        f for f in os.listdir(UPLOAD_DIRECTORY)
+        if f.lower().endswith(".run")
+    ]
+    return {"run_files": run_files}
+
 
 # Include the router with a prefix
 app.include_router(router, prefix="/api")
