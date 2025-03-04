@@ -18,3 +18,4 @@ build/
 
 # Environment Variables
 .env
+/backend/uploads
