@@ -4,3 +4,4 @@ pydantic>=2.3.0
 sqlalchemy>=2.0.20
 python-dotenv>=1.0.0
 python-multipart>=0.0.5
+filelock>=3.12.0
