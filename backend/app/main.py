@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from filelock import FileLock
 
-app = FastAPI(title="Your API")
+app = FastAPI(title="GradeLens API")
 
 # Configure CORS
 origins = [
