@@ -27,11 +27,11 @@ export function FileUpload({ sessionId }: FileUploadProps) {
     if (!commonFiles || commonFiles.length === 0) return;
     const formData = new FormData();
     Array.from(commonFiles).forEach(file => {
-      formData.append('files', file);
+      formData.append('file', file);  // Change 'files' -> 'file' (backend expects single file at a time)
     });
   
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload_files/`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload_sec_grp/`, {
         method: 'POST',
         credentials: 'include',
         headers: sessionId ? { 'X-Session-ID': sessionId } : {},
@@ -39,11 +39,11 @@ export function FileUpload({ sessionId }: FileUploadProps) {
       });
       if (!response.ok) throw new Error(`Error: ${response.status}`);
       const data = await response.json();
-      setMessage(`Common files uploaded: ${data.uploaded_files.join(', ')}`);
+      setMessage(`File uploaded: ${data.original_filename}, Stored as: ${data.stored_as}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'An unknown error occurred.');
     }
-  };
+  };  
   
   const uploadRunFile = async () => {
     if (!runFile) return;
