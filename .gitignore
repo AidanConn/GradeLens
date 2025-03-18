@@ -19,3 +19,4 @@ build/
 # Environment Variables
 .env
 /backend/uploads
+backend/app/__pycache__/main.cpython-312.pyc
