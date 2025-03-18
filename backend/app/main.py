@@ -13,6 +13,7 @@ app = FastAPI(title="GradeLens API")
 # Configure CORS
 origins = [
     "http://localhost:3000",  # React app
+    "http://localhost:5173",  # Dev - With out docker
     "http://localhost:8000",  # FastAPI app
 ]
 
