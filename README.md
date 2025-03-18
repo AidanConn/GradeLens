@@ -77,7 +77,7 @@ This README outlines the steps to set up and run GradeLens, both:
    uvicorn app.main:app --reload
    ```
    The API will be accessible at:
-   [http://localhost:8000](http://localhost:8000)
+   [http://localhost:8002](http://localhost:8002)
 
 ---
 
@@ -146,12 +146,12 @@ If you prefer to avoid installing local Python or Node.js environments, you can 
      - Build the **frontend** image from `frontend/Dockerfile`.
      - Spin up two containers:  
        1. **frontend** (listening on port 3000 externally, served by Nginx).  
-       2. **backend** (listening on port 8000 externally, served by Uvicorn).
+       2. **backend** (listening on port 8002 externally, served by Uvicorn).
    - Logs from both containers will appear in your terminal.
 
 3. **Access the App**  
    - **Frontend**: [http://localhost:3000](http://localhost:3000)  
-   - **Backend**: [http://localhost:8000](http://localhost:8000)
+   - **Backend**: [http://localhost:8002](http://localhost:8002)
 
 ### 2.2 Development vs. Production in Docker
 
@@ -160,7 +160,7 @@ If you prefer to avoid installing local Python or Node.js environments, you can 
   services:
     frontend:
       environment:
-        - VITE_API_URL=http://localhost:8000
+        - VITE_API_URL=http://localhost:8002
     backend:
       environment:
         - ENVIRONMENT=development
@@ -191,14 +191,14 @@ services:
     depends_on:
       - backend
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://localhost:8002
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8002:8002"
     volumes:
       - ./backend:/app
     environment:
@@ -208,7 +208,7 @@ services:
 
 - **Ports**:  
   - `frontend` is available on your host’s port **3000**. Inside the container, it listens on port 80 via Nginx.  
-  - `backend` is available on your host’s port **8000**.
+  - `backend` is available on your host’s port **8002**.
 
 - **Volumes**:  
   - The `./frontend` directory is mounted into `/app` on the `frontend` container, with `/app/node_modules` as an anonymous volume.  
