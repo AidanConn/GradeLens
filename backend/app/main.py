@@ -68,73 +68,75 @@ def parse_csv_lines(lines: List[str]) -> List[List[str]]:
 def parse_sec_file(lines: List[str]) -> dict:
     """
     Parses a .sec file.
-    Expected format:
-      - First row: course_code, semester, [credits]
-      - Subsequent rows: name, student_id, grade
+    Expected formats:
+      - CSV Format: Header row with comma separation:
+           course_code, semester, [credit_hours]
+      - Plain Text Format: A single header field containing whitespace-separated tokens,
+           e.g. "COMSC110.01F22  4.0" (course code then credit hours)
+      Subsequent rows (CSV format) must contain: name, student_id, grade
+
+    Returns a dictionary with the course info nested under "course" and the list of student records.
     """
     rows = parse_csv_lines(lines)
     if not rows:
         raise ValueError("Empty file")
-    
+
     header = rows[0]
-    course = header[0].strip() if len(header) > 0 else "Unknown Course"
-    semester = header[1].strip() if len(header) > 1 else None
-    credits = None
-    if len(header) > 2:
-        try:
-            credits = float(header[2].strip())
-        except ValueError:
-            credits = None
+    if len(header) == 1:
+        # Plain text header; split on whitespace.
+        parts = header[0].split()
+        if not parts:
+            raise ValueError(f"Header line is empty after splitting: {header[0]}")
+        course_name = parts[0]
+        credit_hours = None
+        if len(parts) > 1:
+            try:
+                credit_hours = float(parts[1])
+            except ValueError as e:
+                raise ValueError(f"Unable to convert credit value '{parts[1]}' to float: {e}")
+        # No semester is available in this header.
+        course_info = {"name": course_name, "credit_hours": credit_hours}
+    else:
+        # CSV header format with multiple columns.
+        course_name = header[0].strip() if len(header) > 0 else "Unknown Course"
+        semester = header[1].strip() if len(header) > 1 else None
+        credit_hours = None
+        if len(header) > 2:
+            try:
+                credit_hours = float(header[2].strip())
+            except ValueError as e:
+                raise ValueError(f"Unable to convert credit value '{header[2]}' to float: {e}")
+        course_info = {"name": course_name, "credit_hours": credit_hours}
+        if semester:
+            course_info["semester"] = semester
 
     students = []
-    for row in rows[1:]:
-        if len(row) >= 3:
-            name = row[0].strip()
-            student_id = row[1].strip()
-            grade = row[2].strip()
-            students.append({"name": name, "student_id": student_id, "grade": grade})
-    
-    result = {
-        "course": course,
-        "students": students,
-    }
-    if semester:
-        result["semester"] = semester
-    if credits is not None:
-        result["credits"] = credits
-    return result
+    for i, row in enumerate(rows[1:], start=2):
+        if len(row) < 3:
+            raise ValueError(f"Row {i} does not have enough columns: {row}")
+        name = row[0].strip()
+        student_id = row[1].strip()
+        grade = row[2].strip()
+        students.append({"name": name, "student_id": student_id, "grade": grade})
+
+    return {"course": course_info, "students": students}
+
 
 def parse_grp_file(lines: List[str]) -> dict:
     """
     Parses a .grp file.
-    Expected format:
-      - First row: course_code, group_info
-      - Subsequent rows: name, student_id, grade
+    Expected format (plain text):
+      - First non-empty line: course code (e.g., COMSC100)
+      - Subsequent non-empty lines: section file names (e.g., COMSC110.01F22.sec, etc.)
+    Returns a dictionary with the course and sections.
     """
-    rows = parse_csv_lines(lines)
-    if not rows:
+    clean_lines = [line.strip() for line in lines if line.strip()]
+    if not clean_lines:
         raise ValueError("Empty file")
     
-    header = rows[0]
-    course = header[0].strip() if len(header) > 0 else "Unknown Course"
-    group_info = header[1].strip() if len(header) > 1 else None
-
-    students = []
-    for row in rows[1:]:
-        if len(row) >= 3:
-            name = row[0].strip()
-            student_id = row[1].strip()
-            grade = row[2].strip()
-            students.append({"name": name, "student_id": student_id, "grade": grade})
-    
-    result = {
-        "course": course,
-        "students": students,
-    }
-    if group_info:
-        result["group_info"] = group_info
-    return result
-
+    course = clean_lines[0]
+    sections = clean_lines[1:]  # all remaining lines are section file names
+    return {"course": course, "sections": sections}
 
 @router.post("/upload_sec_grp/")
 async def upload_sec_grp_files(
@@ -143,9 +145,8 @@ async def upload_sec_grp_files(
 ):
     """
     Uploads and processes multiple .SEC or .GRP files.
-    - For .sec files, expects a header: course_code, semester, [credits]
-    - For .grp files, expects a header: course_code, group_info
-    - In both cases, subsequent rows should contain: name, student_id, grade
+    - For .sec files, expects a header as defined in parse_sec_file.
+    - For .grp files, expects plain text with the first non-empty line as the course and the rest as section filenames.
     The parsed data is stored as JSON.
     """
     allowed_extensions = {".sec", ".grp"}
@@ -170,7 +171,6 @@ async def upload_sec_grp_files(
         if not lines:
             raise HTTPException(status_code=400, detail=f"Uploaded file '{file.filename}' is empty.")
 
-        # Choose parser based on file extension
         try:
             if ext == ".sec":
                 parsed_data = parse_sec_file(lines)
@@ -181,7 +181,6 @@ async def upload_sec_grp_files(
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Error parsing file '{file.filename}': {str(e)}")
 
-        # Save parsed data to JSON
         json_path = file_path.with_suffix(".json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(parsed_data, f, indent=2)
@@ -255,8 +254,6 @@ def parse_run_file_for_associated_files(run_file_path: Path) -> dict:
 
 def process_run_file(run_file_path: Path, associated_files: dict, session_id: str) -> dict:
     return {"gpa": 3.85, "grade_distribution": {"A": 12, "B": 8, "C": 3}}
-
-app.include_router(router, prefix="/api")
 
 # Old endpoints (commented out) for direct file uploads or mass upload processing
 # are preserved below; the updated architecture prefers using /upload_files/ and /upload_run/
