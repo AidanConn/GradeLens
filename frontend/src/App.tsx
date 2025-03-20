@@ -49,6 +49,14 @@ const App: React.FC = () => {
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Toolbar />
         <Container maxWidth="md">
+          {/* Welcome Message */}
+          <Typography 
+            variant="h4" 
+            sx={{ textAlign: 'center', mt: 2, mb: 3, fontWeight: 'bold', color: '#646cff' }}
+          >
+            Welcome to GradeLens!
+          </Typography>
+
           <Typography variant="body1" sx={{ mb: 2 }}>
             Session ID: {sessionId || "Loading..."}
           </Typography>
