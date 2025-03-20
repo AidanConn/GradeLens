@@ -56,63 +56,70 @@ def get_session_id(request: Request, response: Response):
     return session_id
 
 @router.post("/upload_sec_grp/")
-async def upload_sec_grp_file(
-    file: UploadFile = File(...),
+async def upload_sec_grp_files(
+    files: List[UploadFile] = File(...),
     session_id: str = Depends(get_session_id)
 ):
     """
-    Uploads and processes .SEC or .GRP files.
-    - Extracts metadata (course name, credits).
+    Uploads and processes multiple .SEC or .GRP files.
+    - For each file, extracts metadata (course name, credits) from the header.
     - Parses student records (name, ID/code, grade).
-    - Stores as JSON for consistent storage and retrieval.
+    - Stores the parsed data as JSON.
     """
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in {".sec", ".grp"}:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type '{ext}'. Only .SEC and .GRP files are allowed."
-        )
-
+    allowed_extensions = {".sec", ".grp"}
     session_files_dir = UPLOAD_DIR / session_id / "files"
-    file_path = session_files_dir / file.filename
-    content = await file.read()
-    lines = content.decode("utf-8").splitlines()
+    results = []
 
-    if not lines:
-        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    for file in files:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type '{ext}' for file '{file.filename}'. Only .SEC and .GRP files are allowed."
+            )
 
-    # Extract header information
-    header = lines[0].split()
-    course_name = header[0] if len(header) > 0 else "Unknown Course"
-    credits = float(header[1]) if len(header) > 1 else None
+        file_path = session_files_dir / file.filename
+        content = await file.read()
+        lines = content.decode("utf-8").splitlines()
 
-    # Parse student records
-    students = []
-    for line in lines[1:]:
-        parts = line.split(",")
-        if len(parts) == 3:
-            name = parts[0].strip('"')
-            student_id = parts[1].strip('"')
-            grade = parts[2].strip('"')
-            students.append({"name": name, "student_id": student_id, "grade": grade})
+        if not lines:
+            raise HTTPException(status_code=400, detail=f"Uploaded file '{file.filename}' is empty.")
 
-    # Store parsed data in JSON format
-    parsed_data = {
-        "course": course_name,
-        "credits": credits,
-        "students": students
-    }
+        # Extract header information
+        header = lines[0].split()
+        course_name = header[0] if len(header) > 0 else "Unknown Course"
+        credits = float(header[1]) if len(header) > 1 else None
 
-    json_path = file_path.with_suffix(".json")
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(parsed_data, f, indent=2)
+        # Parse student records from subsequent lines
+        students = []
+        for line in lines[1:]:
+            parts = line.split(",")
+            if len(parts) == 3:
+                name = parts[0].strip('" ')
+                student_id = parts[1].strip('" ')
+                grade = parts[2].strip('" ')
+                students.append({"name": name, "student_id": student_id, "grade": grade})
 
-    return {
-        "message": "File processed successfully",
-        "original_filename": file.filename,
-        "stored_as": json_path.name,
-        "parsed_data": parsed_data
-    }
+        # Store parsed data in JSON format
+        parsed_data = {
+            "course": course_name,
+            "credits": credits,
+            "students": students
+        }
+
+        json_path = file_path.with_suffix(".json")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(parsed_data, f, indent=2)
+
+        results.append({
+            "message": "File processed successfully",
+            "original_filename": file.filename,
+            "stored_as": json_path.name,
+            "parsed_data": parsed_data
+        })
+
+    return {"files": results}
+
 
 @router.post("/upload_files/")
 async def upload_common_files(

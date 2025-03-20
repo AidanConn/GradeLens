@@ -27,7 +27,7 @@ export function FileUpload({ sessionId }: FileUploadProps) {
     if (!commonFiles || commonFiles.length === 0) return;
     const formData = new FormData();
     Array.from(commonFiles).forEach(file => {
-      formData.append('file', file);  // Change 'files' -> 'file' (backend expects single file at a time)
+      formData.append('files', file); // Use "files" as the key to match the backend
     });
   
     try {
@@ -39,7 +39,12 @@ export function FileUpload({ sessionId }: FileUploadProps) {
       });
       if (!response.ok) throw new Error(`Error: ${response.status}`);
       const data = await response.json();
-      setMessage(`File uploaded: ${data.original_filename}, Stored as: ${data.stored_as}`);
+      // Assuming the backend returns an array of file results:
+      setMessage(
+        `Files uploaded successfully: ${data.files
+          .map((f: { original_filename: string }) => f.original_filename)
+          .join(', ')}`
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'An unknown error occurred.');
     }
