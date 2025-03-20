@@ -1,5 +1,6 @@
 # GradeLens
 
+**Course:** COMSC.330 Principles of Software Design  
 **Team:** CALM Byte  
 **Members:** Aidan Connaughton, Matthew Guaman, Cassidy Methot, Veronica Rodriguez
 
@@ -7,13 +8,13 @@
 
 GradeLens is a full-stack application designed to:
 
-- Calculate GPAs for different class sections.  
-- Compare GPA statistics across individual sections and grouped courses.  
-- Track detailed grade distributions.  
+- Calculate GPAs for different class sections.
+- Compare GPA statistics across individual sections and grouped courses.
+- Track detailed grade distributions.
 - Identify students on the “Good” list (A or A-) and “Work” list (D+, D, D-, or F).
 
-This README outlines the steps to set up and run GradeLens, both:
-1. **Locally** (using native Python/Node.js toolchains), and
+This README outlines how to set up and run GradeLens either:
+1. **Locally** (using native Python/Node.js toolchains), or
 2. **Using Docker** (via Docker Compose).
 
 ---
@@ -37,12 +38,13 @@ This README outlines the steps to set up and run GradeLens, both:
   node --version
   npm --version
   ```
-- **Pip** (usually comes with Python)
-- A code editor (VS Code, for example)
+- **Pip** (usually installed with Python)
+- A code editor (e.g., VS Code)
 
 ### 1.2 Repository Setup
 
-1. **Clone the Repository**
+1. **Clone the Repository**  
+   *(Replace `your-username` with the actual GitHub username.)*
    ```bash
    git clone https://github.com/your-username/GradeLens.git
    cd GradeLens
@@ -76,16 +78,15 @@ This README outlines the steps to set up and run GradeLens, both:
    ```bash
    uvicorn app.main:app --reload
    ```
-   The API will be accessible at:
-   [http://localhost:8002](http://localhost:8002)
+   The API will be accessible at: [http://localhost:8002](http://localhost:8002)
 
 ---
 
 ### 1.4 Frontend Setup (React/TypeScript/Vite)
 
-1. **Open a Second Terminal** (or go back to the project’s root, then into `frontend`):
+1. **Open a Second Terminal** (or open a new tab/terminal and navigate to the project’s root, then into `frontend`):
    ```bash
-   cd ../frontend
+   cd frontend
    ```
 2. **Install Node Dependencies**
    ```bash
@@ -95,19 +96,17 @@ This README outlines the steps to set up and run GradeLens, both:
    ```bash
    npm run dev
    ```
-   By default, the React app will be accessible at:
-   [http://localhost:3000](http://localhost:3000)
+   By default, the React app will be accessible at: [http://localhost:3000](http://localhost:3000)
 
 ---
 
 ### 1.5 Local Development Troubleshooting
 
-- **Python Not Found**  
-  If you get an error like `Python was not found; run without arguments to install...`, use `py` (Windows) or `python3` (macOS/Linux).  
-  Alternatively, disable the Microsoft Store alias in **Settings > Apps > Manage App Execution Aliases** (Windows).
+- **Python Not Found:**  
+  If you see an error like `Python was not found; run without arguments to install...`, try using `py` (on Windows) or `python3` (on macOS/Linux). You may also need to disable the Microsoft Store alias under **Settings > Apps > Manage App Execution Aliases** (Windows).
 
-- **Virtual Environment Activation Issues**  
-  Make sure you run:
+- **Virtual Environment Activation Issues:**  
+  Ensure you activate your virtual environment before installing packages or starting the backend server:
   ```powershell
   .\venv\Scripts\activate
   ```
@@ -115,23 +114,22 @@ This README outlines the steps to set up and run GradeLens, both:
   ```bash
   source venv/bin/activate
   ```
-  before installing packages or starting the backend server.
 
-- **CORS Issues**  
-  If the frontend can’t communicate with the backend, check CORS settings in your FastAPI code (e.g., `main.py`). Adjust allowed origins as needed.
+- **CORS Issues:**  
+  If the frontend cannot communicate with the backend, review the CORS settings in your FastAPI code (e.g., in `main.py`). Adjust the allowed origins if needed.
 
 ---
 
 ## 2. Running via Docker and Docker Compose
 
-If you prefer to avoid installing local Python or Node.js environments, you can run the entire stack with Docker Compose. Make sure you have:
+If you prefer not to install local Python or Node.js environments, you can run the entire stack using Docker Compose. Make sure you have:
 
-- **Docker** installed and running  
-- **Docker Compose** installed (often bundled with Docker Desktop)
+- **Docker** installed and running.
+- **Docker Compose** installed (often bundled with Docker Desktop).
 
 ### 2.1 Docker Compose Setup
 
-1. **Clone the Repository** (if you haven’t already)
+1. **Clone the Repository** (if not already done)
    ```bash
    git clone https://github.com/your-username/GradeLens.git
    cd GradeLens
@@ -141,39 +139,21 @@ If you prefer to avoid installing local Python or Node.js environments, you can 
    ```bash
    docker-compose up --build
    ```
-   - This will:
-     - Build the **backend** image from `backend/Dockerfile`.
-     - Build the **frontend** image from `frontend/Dockerfile`.
-     - Spin up two containers:  
-       1. **frontend** (listening on port 3000 externally, served by Nginx).  
-       2. **backend** (listening on port 8002 externally, served by Uvicorn).
-   - Logs from both containers will appear in your terminal.
+   This command will:
+   - Build the **backend** image from `backend/Dockerfile`.
+   - Build the **frontend** image from `frontend/Dockerfile`.
+   - Spin up two containers:
+     - **frontend** (exposed on port 3000, served by Nginx).
+     - **backend** (exposed on port 8002, served by Uvicorn).
+   Logs from both containers will appear in your terminal.
 
-3. **Access the App**  
-   - **Frontend**: [http://localhost:3000](http://localhost:3000)  
-   - **Backend**: [http://localhost:8002](http://localhost:8002)
+3. **Access the App:**
+   - **Frontend:** [http://localhost:3000](http://localhost:3000)
+   - **Backend:** [http://localhost:8002](http://localhost:8002)
 
-### 2.2 Development vs. Production in Docker
+### 2.2 Docker Compose File Highlights
 
-- The provided `docker-compose.yml` sets environment variables like:
-  ```yaml
-  services:
-    frontend:
-      environment:
-        - VITE_API_URL=http://localhost:8002
-    backend:
-      environment:
-        - ENVIRONMENT=development
-        - DATABASE_URL=sqlite:///./app.db
-  ```
-  - You can override these by using a `.env` file or by passing environment variables at runtime:
-    ```bash
-    ENVIRONMENT=production DATABASE_URL="postgresql://..." docker-compose up --build
-    ```
-- The **frontend** container uses a multi-stage Dockerfile that builds the React/Vite app, then serves static files with Nginx.
-- The **backend** container installs Python dependencies, copies your FastAPI code, and runs `uvicorn`.
-
-### 2.3 Docker Compose File Highlights
+Below is an example `docker-compose.yml` without any database configuration:
 
 ```yaml
 version: '3.8'
@@ -203,34 +183,24 @@ services:
       - ./backend:/app
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=sqlite:///./app.db
 ```
 
-- **Ports**:  
-  - `frontend` is available on your host’s port **3000**. Inside the container, it listens on port 80 via Nginx.  
-  - `backend` is available on your host’s port **8002**.
+- **Ports:**  
+  - **Frontend:** Exposed on port **3000** (internally served on port 80 by Nginx).  
+  - **Backend:** Exposed on port **8002** (served by Uvicorn).
 
-- **Volumes**:  
-  - The `./frontend` directory is mounted into `/app` on the `frontend` container, with `/app/node_modules` as an anonymous volume.  
-  - The `./backend` directory is mounted into `/app` on the `backend` container.
+- **Volumes:**  
+  - The local `./frontend` directory is mounted to `/app` in the frontend container (with `/app/node_modules` as an anonymous volume).  
+  - The local `./backend` directory is mounted to `/app` in the backend container.
 
-> **Note**: Mounting volumes means changes you make locally will reflect immediately in the container (useful for local development). However, if you want a purely production-grade deployment, you might remove or modify these volume settings.
+> **Note:** Mounting volumes allows for live code updates during development. For a production deployment, consider removing or adjusting these volume settings.
 
-### 2.4 Stopping the Containers
+### 2.3 Stopping the Containers
 
-In the same terminal where `docker-compose up` is running, press `Ctrl + C`.  
-Alternatively, in a separate terminal from the project root:
-
+To stop the containers, press `Ctrl + C` in the terminal where `docker-compose up` is running, or run:
 ```bash
 docker-compose down
 ```
+from the project root in a separate terminal.
 
 ---
-
-## 3. Additional Tips
-
-- **HTTPS**  
-  For local development, HTTP is typically fine. For production, consider configuring TLS/HTTPS either at the Docker level (by adjusting the Nginx config) or behind a reverse proxy.
-
-- **Environment Variables**  
-  Store sensitive environment variables (API keys, DB credentials) in a local `.env` file and reference them from `docker-compose.yml`. Be sure not to commit `.env` files to source control.
