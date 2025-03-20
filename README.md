@@ -44,9 +44,8 @@ This README outlines how to set up and run GradeLens either:
 ### 1.2 Repository Setup
 
 1. **Clone the Repository**  
-   *(Replace `your-username` with the actual GitHub username.)*
    ```bash
-   git clone https://github.com/your-username/GradeLens.git
+   git clone https://github.com/AidanConn/GradeLens.git
    cd GradeLens
    ```
 
