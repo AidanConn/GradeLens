@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 from filelock import FileLock
+import csv
+from io import StringIO
 
 app = FastAPI(title="GradeLens API")
 
@@ -55,6 +57,85 @@ def get_session_id(request: Request, response: Response):
     session_runs_dir.mkdir(parents=True, exist_ok=True)
     return session_id
 
+def parse_csv_lines(lines: List[str]) -> List[List[str]]:
+    """
+    Convert a list of strings (lines) into a list of CSV rows.
+    """
+    csv_text = "\n".join(lines)
+    reader = csv.reader(StringIO(csv_text))
+    return list(reader)
+
+def parse_sec_file(lines: List[str]) -> dict:
+    """
+    Parses a .sec file.
+    Expected format:
+      - First row: course_code, semester, [credits]
+      - Subsequent rows: name, student_id, grade
+    """
+    rows = parse_csv_lines(lines)
+    if not rows:
+        raise ValueError("Empty file")
+    
+    header = rows[0]
+    course = header[0].strip() if len(header) > 0 else "Unknown Course"
+    semester = header[1].strip() if len(header) > 1 else None
+    credits = None
+    if len(header) > 2:
+        try:
+            credits = float(header[2].strip())
+        except ValueError:
+            credits = None
+
+    students = []
+    for row in rows[1:]:
+        if len(row) >= 3:
+            name = row[0].strip()
+            student_id = row[1].strip()
+            grade = row[2].strip()
+            students.append({"name": name, "student_id": student_id, "grade": grade})
+    
+    result = {
+        "course": course,
+        "students": students,
+    }
+    if semester:
+        result["semester"] = semester
+    if credits is not None:
+        result["credits"] = credits
+    return result
+
+def parse_grp_file(lines: List[str]) -> dict:
+    """
+    Parses a .grp file.
+    Expected format:
+      - First row: course_code, group_info
+      - Subsequent rows: name, student_id, grade
+    """
+    rows = parse_csv_lines(lines)
+    if not rows:
+        raise ValueError("Empty file")
+    
+    header = rows[0]
+    course = header[0].strip() if len(header) > 0 else "Unknown Course"
+    group_info = header[1].strip() if len(header) > 1 else None
+
+    students = []
+    for row in rows[1:]:
+        if len(row) >= 3:
+            name = row[0].strip()
+            student_id = row[1].strip()
+            grade = row[2].strip()
+            students.append({"name": name, "student_id": student_id, "grade": grade})
+    
+    result = {
+        "course": course,
+        "students": students,
+    }
+    if group_info:
+        result["group_info"] = group_info
+    return result
+
+
 @router.post("/upload_sec_grp/")
 async def upload_sec_grp_files(
     files: List[UploadFile] = File(...),
@@ -62,9 +143,10 @@ async def upload_sec_grp_files(
 ):
     """
     Uploads and processes multiple .SEC or .GRP files.
-    - For each file, extracts metadata (course name, credits) from the header.
-    - Parses student records (name, ID/code, grade).
-    - Stores the parsed data as JSON.
+    - For .sec files, expects a header: course_code, semester, [credits]
+    - For .grp files, expects a header: course_code, group_info
+    - In both cases, subsequent rows should contain: name, student_id, grade
+    The parsed data is stored as JSON.
     """
     allowed_extensions = {".sec", ".grp"}
     session_files_dir = UPLOAD_DIR / session_id / "files"
@@ -80,33 +162,26 @@ async def upload_sec_grp_files(
 
         file_path = session_files_dir / file.filename
         content = await file.read()
-        lines = content.decode("utf-8").splitlines()
+        try:
+            lines = content.decode("utf-8").splitlines()
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail=f"Unable to decode file '{file.filename}'.")
 
         if not lines:
             raise HTTPException(status_code=400, detail=f"Uploaded file '{file.filename}' is empty.")
 
-        # Extract header information
-        header = lines[0].split()
-        course_name = header[0] if len(header) > 0 else "Unknown Course"
-        credits = float(header[1]) if len(header) > 1 else None
+        # Choose parser based on file extension
+        try:
+            if ext == ".sec":
+                parsed_data = parse_sec_file(lines)
+            elif ext == ".grp":
+                parsed_data = parse_grp_file(lines)
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported file type '{ext}'.")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error parsing file '{file.filename}': {str(e)}")
 
-        # Parse student records from subsequent lines
-        students = []
-        for line in lines[1:]:
-            parts = line.split(",")
-            if len(parts) == 3:
-                name = parts[0].strip('" ')
-                student_id = parts[1].strip('" ')
-                grade = parts[2].strip('" ')
-                students.append({"name": name, "student_id": student_id, "grade": grade})
-
-        # Store parsed data in JSON format
-        parsed_data = {
-            "course": course_name,
-            "credits": credits,
-            "students": students
-        }
-
+        # Save parsed data to JSON
         json_path = file_path.with_suffix(".json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(parsed_data, f, indent=2)
@@ -119,29 +194,6 @@ async def upload_sec_grp_files(
         })
 
     return {"files": results}
-
-
-@router.post("/upload_files/")
-async def upload_common_files(
-    files: List[UploadFile] = File(...),
-    session_id: str = Depends(get_session_id)
-):
-    allowed_extensions = {".sec", ".grp", ".lst"}
-    session_files_dir = UPLOAD_DIR / session_id / "files"
-    uploaded_files = []
-    for file in files:
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext not in allowed_extensions:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid file type '{ext}' for file '{file.filename}'."
-            )
-        file_path = session_files_dir / file.filename
-        content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
-        uploaded_files.append(file.filename)
-    return {"uploaded_files": uploaded_files}
 
 @router.post("/upload_run/")
 async def upload_run_file(
