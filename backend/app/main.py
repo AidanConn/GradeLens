@@ -135,6 +135,11 @@ def parse_grp_file(lines: List[str]) -> dict:
         raise ValueError("Empty file")
     
     course = clean_lines[0]
+
+    # Remove the .sec from the secton names
+    for i in range(1, len(clean_lines)):
+        clean_lines[i] = clean_lines[i].replace(".sec", "")
+
     sections = clean_lines[1:]  # all remaining lines are section file names
     return {"course": course, "sections": sections}
 
