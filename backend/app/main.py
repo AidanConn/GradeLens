@@ -319,6 +319,30 @@ async def list_runs(session_id: str = Depends(get_session_id)):
     
     return {"runs": runs}
 
+@router.get("/runs/{run_id}/calculations")
+async def get_run_calculations(
+    run_id: str, 
+    session_id: str = Depends(get_session_id)
+):
+    """
+    Retrieves the calculation results for a specific run.
+    """
+    run_dir = UPLOAD_DIR / session_id / "runs" / run_id
+    if not run_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
+    
+    calc_file_path = run_dir / "calculations.json"
+    if not calc_file_path.exists():
+        raise HTTPException(status_code=404, detail=f"Calculations not found for run {run_id}.")
+    
+    with open(calc_file_path, "r", encoding="utf-8") as f:
+        calculations = json.load(f)
+    
+    return {
+        "run_id": run_id,
+        "calculations": calculations
+    }
+
 @router.get("/runs/{run_id}/status")
 async def get_run_status(
     run_id: str, 
@@ -406,6 +430,26 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     
     session_files_dir = UPLOAD_DIR / session_id / "files"
     
+    # Define more granular grade points for plus/minus grades
+    grade_values = {
+        "A": 4.0, "A-": 3.7,
+        "B+": 3.3, "B": 3.0, "B-": 2.7,
+        "C+": 2.3, "C": 2.0, "C-": 1.7,
+        "D+": 1.3, "D": 1.0, "D-": 0.7,
+        "F": 0.0
+    }
+    
+    # Define grade categories for consistent distribution
+    grade_categories = {
+        "A": ["A", "A-"],
+        "B": ["B+", "B", "B-"],
+        "C": ["C+", "C", "C-"],
+        "D": ["D+", "D", "D-"],
+        "F": ["F"],
+        "W": ["W"],
+        "Other": []  # Will capture any grades not listed above
+    }
+    
     # Process each GRP file
     for grp_file in grp_files:
         grp_path = session_files_dir / grp_file
@@ -429,12 +473,13 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             "course_name": course_name,
             "total_students": 0,
             "sections": [],
-            "grade_distribution": {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0, "W": 0, "Other": 0},
+            "grade_distribution": {category: 0 for category in grade_categories},
+            "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
             "average_gpa": 0.0
         }
         
         total_grade_points = 0.0
-        grade_values = {"A": 4.0, "B": 3.0, "C": 2.0, "D": 1.0, "F": 0.0}
+        total_graded_students = 0
         
         # Process each section in the GRP file
         for section in sections:
@@ -458,8 +503,12 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             section_results = {
                 "section_name": section,
                 "student_count": len(students),
-                "grade_distribution": {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0, "W": 0, "Other": 0}
+                "grade_distribution": {category: 0 for category in grade_categories},
+                "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()}
             }
+            
+            section_total_points = 0.0
+            section_graded_students = 0
             
             # Process student grades
             for student in students:
@@ -467,54 +516,82 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                 
                 # Update section grade distribution
                 if grade in grade_values:
-                    section_results["grade_distribution"][grade] += 1
-                    course_results["grade_distribution"][grade] += 1
+                    # Track in detailed distribution
+                    section_results["detailed_grade_distribution"][grade] += 1
+                    course_results["detailed_grade_distribution"][grade] += 1
+                    
+                    # Add to category totals (A, B, C, D, F)
+                    for category, grades in grade_categories.items():
+                        if grade in grades:
+                            section_results["grade_distribution"][category] += 1
+                            course_results["grade_distribution"][category] += 1
+                            break
+                    
+                    # Calculate GPA
+                    section_total_points += grade_values[grade]
+                    section_graded_students += 1
                     total_grade_points += grade_values[grade]
+                    total_graded_students += 1
+                
                 elif grade == "W":
                     section_results["grade_distribution"]["W"] += 1
                     course_results["grade_distribution"]["W"] += 1
+                
                 else:
+                    # Handle any other grade (NP, I, etc.)
                     section_results["grade_distribution"]["Other"] += 1
                     course_results["grade_distribution"]["Other"] += 1
+            
+            # Calculate section GPA
+            if section_graded_students > 0:
+                section_results["average_gpa"] = round(section_total_points / section_graded_students, 2)
+            else:
+                section_results["average_gpa"] = 0.0
             
             course_results["total_students"] += section_results["student_count"]
             course_results["sections"].append(section_results)
         
-        # Calculate GPA
-        graded_students = sum(course_results["grade_distribution"][g] for g in grade_values.keys())
-        if graded_students > 0:
-            course_results["average_gpa"] = round(total_grade_points / graded_students, 2)
+        # Calculate course GPA
+        if total_graded_students > 0:
+            course_results["average_gpa"] = round(total_grade_points / total_graded_students, 2)
             
         results["courses"].append(course_results)
     
     # Calculate overall statistics
     total_students = sum(c["total_students"] for c in results["courses"])
-    overall_grades = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0, "W": 0, "Other": 0}
+    overall_grades = {category: 0 for category in grade_categories}
+    detailed_grades = {grade: 0 for grade in grade_values.keys()}
     
     for course in results["courses"]:
-        for grade, count in course["grade_distribution"].items():
-            overall_grades[grade] += count
+        for grade, count in course["detailed_grade_distribution"].items():
+            if grade in detailed_grades:
+                detailed_grades[grade] += count
+        
+        for category, count in course["grade_distribution"].items():
+            if category in overall_grades:
+                overall_grades[category] += count
     
     # Calculate overall GPA
-    graded_students = sum(overall_grades[g] for g in grade_values.keys())
+    overall_total_points = 0.0
+    overall_graded_students = 0
+    
+    for grade, count in detailed_grades.items():
+        if grade in grade_values:
+            overall_total_points += grade_values[grade] * count
+            overall_graded_students += count
+    
     overall_gpa = 0.0
-    if graded_students > 0:
-        total_points = (
-            overall_grades["A"] * 4.0 +
-            overall_grades["B"] * 3.0 +
-            overall_grades["C"] * 2.0 +
-            overall_grades["D"] * 1.0
-        )
-        overall_gpa = round(total_points / graded_students, 2)
+    if overall_graded_students > 0:
+        overall_gpa = round(overall_total_points / overall_graded_students, 2)
     
     results["summary"] = {
         "total_students": total_students,
         "grade_distribution": overall_grades,
+        "detailed_grade_distribution": detailed_grades,  
         "overall_gpa": overall_gpa
     }
     
     return results
-
 
 # Old endpoints (commented out) for direct file uploads or mass upload processing
 # are preserved below; the updated architecture prefers using /upload_files/ and /upload_run/
