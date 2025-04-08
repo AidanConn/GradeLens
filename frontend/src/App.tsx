@@ -41,39 +41,41 @@ const App: React.FC = () => {
   return (
     <>
       <CssBaseline />
-      <AppBar position="fixed">
-        <Toolbar>
-          <Typography variant="h6">GradeLens Dashboard</Typography>
-        </Toolbar>
-      </AppBar>
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <AppBar position="fixed">
+          <Toolbar>
+            <Typography variant="h6">GradeLens Dashboard</Typography>
+          </Toolbar>
+        </AppBar>
         <Toolbar />
-        <Container maxWidth="md">
+        <Container disableGutters maxWidth={false} sx={{ flex: 1, overflowY: 'auto', pb: 3 }}>
           {/* Welcome Message */}
           <Typography 
             variant="h4" 
-            sx={{ textAlign: 'center', mt: 2, mb: 3, fontWeight: 'bold', color: '#646cff' }}
+            sx={{ textAlign: 'center', mt: 2, mb: 4, fontWeight: 'bold', color: '#646cff' }}
           >
             Welcome to GradeLens!
           </Typography>
 
-          <Typography variant="body1" sx={{ mb: 2 }}>
+          <Typography variant="body1" sx={{ mb: 3, textAlign: 'center' }}>
             Session ID: {sessionId || "Loading..."}
           </Typography>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
+          <Grid container spacing={4} sx={{ width: '100%' }}>
+            <Grid item xs={12} md={4}>
               <Paper sx={{ p: 3 }}>
                 <FileUpload sessionId={sessionId} />
               </Paper>
             </Grid>
-            <Grid item xs={12}>
+            </Grid>
+            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={8}>
               <Paper sx={{ p: 3 }}>
                 <RunFilesList sessionId={sessionId} />
               </Paper>
             </Grid>
           </Grid>
         </Container>
-        <Box sx={{ textAlign: 'center', p: 2 }}>
+        <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f5f5f5', width: '100%' }}>
           <Typography variant="body2" color="textSecondary">
             © {new Date().getFullYear()} GradeLens. All rights reserved. Developed by CALM Byte
           </Typography>

@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, File, UploadFile, HTTPException, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from typing import List
 import os
 import uuid
@@ -9,6 +10,7 @@ from datetime import datetime
 from filelock import FileLock
 import csv
 from io import StringIO
+import re
 
 app = FastAPI(title="GradeLens API")
 
@@ -26,6 +28,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+try:
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill
+    from openpyxl.utils import get_column_letter
+    EXCEL_EXPORT_AVAILABLE = True
+except ImportError:
+    EXCEL_EXPORT_AVAILABLE = False
 
 @app.get("/")
 async def root(request: Request, response: Response):
@@ -425,7 +435,13 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     results = {
         "run_name": run_name,
         "processed_at": datetime.utcnow().isoformat(),
-        "courses": []
+        "courses": [],
+        "students": {},  # Track students across all courses
+        "class_types": {},  # For storing metrics by course type/level
+        "improvement_lists": {
+            "at_risk": [],  # Students who need improvement (below C average)
+            "honor_roll": []  # Students performing well (B+ or better)
+        }
     }
     
     session_files_dir = UPLOAD_DIR / session_id / "files"
@@ -450,6 +466,22 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
         "Other": []  # Will capture any grades not listed above
     }
     
+    # Helper function to determine course type based on course code
+    def get_course_type(course_code):
+        # Extract course level from course code (e.g. COMSC100 -> 100-level)
+        match = re.search(r'(\d{3})', course_code)
+        if match:
+            level = match.group(1)[0]  # First digit of the course number
+            if level == '1':
+                return "100-level"
+            elif level == '2':
+                return "200-level"
+            elif level == '3':
+                return "300-level"
+            elif level == '4':
+                return "400-level"
+        return "other"
+    
     # Process each GRP file
     for grp_file in grp_files:
         grp_path = session_files_dir / grp_file
@@ -468,18 +500,36 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             
         course_name = grp_data.get("course", "Unknown Course")
         sections = grp_data.get("sections", [])
+        course_type = get_course_type(course_name)
+        
+        # Initialize class type metrics if not already present
+        if course_type not in results["class_types"]:
+            results["class_types"][course_type] = {
+                "total_students": 0,
+                "grade_distribution": {category: 0 for category in grade_categories},
+                "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
+                "average_gpa": 0.0,
+                "courses": []
+            }
         
         course_results = {
             "course_name": course_name,
+            "course_type": course_type,
             "total_students": 0,
             "sections": [],
             "grade_distribution": {category: 0 for category in grade_categories},
             "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
-            "average_gpa": 0.0
+            "average_gpa": 0.0,
+            "student_performance": []  # Will store individual student data for this course
         }
         
+        # Track course-level metrics
         total_grade_points = 0.0
         total_graded_students = 0
+        
+        # Track class-type metrics
+        class_type_grade_points = 0.0
+        class_type_graded_students = 0
         
         # Process each section in the GRP file
         for section in sections:
@@ -504,7 +554,9 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                 "section_name": section,
                 "student_count": len(students),
                 "grade_distribution": {category: 0 for category in grade_categories},
-                "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()}
+                "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
+                "average_gpa": 0.0,
+                "students": []  # Track individual student performance in this section
             }
             
             section_total_points = 0.0
@@ -512,35 +564,83 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             
             # Process student grades
             for student in students:
+                student_name = student.get("name", "Unknown")
+                student_id = student.get("student_id", "000000")
                 grade = student.get("grade", "").upper()
                 
-                # Update section grade distribution
+                # Create student record for this section
+                student_record = {
+                    "name": student_name,
+                    "id": student_id,
+                    "grade": grade,
+                    "grade_point": grade_values.get(grade, None),
+                    "section": section,
+                    "course": course_name,
+                    "course_type": course_type
+                }
+                
+                # Add to section students list
+                section_results["students"].append(student_record)
+                
+                # Add to course student performance list
+                course_results["student_performance"].append(student_record)
+                
+                # Update cross-student tracking
+                if student_id not in results["students"]:
+                    results["students"][student_id] = {
+                        "name": student_name,
+                        "id": student_id,
+                        "courses": [],
+                        "total_grade_points": 0.0,
+                        "total_courses": 0,
+                        "gpa": 0.0
+                    }
+                
+                # Update grade distributions
                 if grade in grade_values:
-                    # Track in detailed distribution
+                    # Track in detailed distribution for section and course
                     section_results["detailed_grade_distribution"][grade] += 1
                     course_results["detailed_grade_distribution"][grade] += 1
+                    results["class_types"][course_type]["detailed_grade_distribution"][grade] += 1
                     
                     # Add to category totals (A, B, C, D, F)
                     for category, grades in grade_categories.items():
                         if grade in grades:
                             section_results["grade_distribution"][category] += 1
                             course_results["grade_distribution"][category] += 1
+                            results["class_types"][course_type]["grade_distribution"][category] += 1
                             break
                     
                     # Calculate GPA
-                    section_total_points += grade_values[grade]
+                    grade_point = grade_values[grade]
+                    section_total_points += grade_point
                     section_graded_students += 1
-                    total_grade_points += grade_values[grade]
+                    total_grade_points += grade_point
                     total_graded_students += 1
+                    class_type_grade_points += grade_point
+                    class_type_graded_students += 1
+                    
+                    # Update student cross-course records
+                    results["students"][student_id]["courses"].append({
+                        "course": course_name,
+                        "section": section,
+                        "grade": grade,
+                        "grade_point": grade_point,
+                        "course_type": course_type
+                    })
+                    results["students"][student_id]["total_grade_points"] += grade_point
+                    results["students"][student_id]["total_courses"] += 1
                 
                 elif grade == "W":
                     section_results["grade_distribution"]["W"] += 1
                     course_results["grade_distribution"]["W"] += 1
+                    results["class_types"][course_type]["grade_distribution"]["W"] += 1
                 
                 else:
                     # Handle any other grade (NP, I, etc.)
                     section_results["grade_distribution"]["Other"] += 1
                     course_results["grade_distribution"]["Other"] += 1
+                    results["class_types"][course_type]["grade_distribution"]["Other"] += 1
             
             # Calculate section GPA
             if section_graded_students > 0:
@@ -549,6 +649,7 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                 section_results["average_gpa"] = 0.0
             
             course_results["total_students"] += section_results["student_count"]
+            results["class_types"][course_type]["total_students"] += section_results["student_count"]
             course_results["sections"].append(section_results)
         
         # Calculate course GPA
@@ -556,6 +657,47 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             course_results["average_gpa"] = round(total_grade_points / total_graded_students, 2)
             
         results["courses"].append(course_results)
+        results["class_types"][course_type]["courses"].append(course_name)
+    
+    # Calculate class type GPAs
+    for course_type, data in results["class_types"].items():
+        if data["total_students"] > 0:
+            class_type_grade_points = sum(
+                grade_values[grade] * count 
+                for grade, count in data["detailed_grade_distribution"].items() 
+                if grade in grade_values
+            )
+            class_type_graded_students = sum(
+                count for grade, count in data["detailed_grade_distribution"].items() 
+                if grade in grade_values
+            )
+            if class_type_graded_students > 0:
+                data["average_gpa"] = round(class_type_grade_points / class_type_graded_students, 2)
+    
+    # Calculate per-student GPA and categorize students
+    for student_id, student_data in results["students"].items():
+        if student_data["total_courses"] > 0:
+            student_data["gpa"] = round(student_data["total_grade_points"] / student_data["total_courses"], 2)
+            
+            # Categorize student performance
+            if student_data["gpa"] < 2.0:  # Below C average
+                results["improvement_lists"]["at_risk"].append({
+                    "id": student_id,
+                    "name": student_data["name"],
+                    "gpa": student_data["gpa"],
+                    "courses": student_data["courses"]
+                })
+            elif student_data["gpa"] >= 3.3:  # B+ or better
+                results["improvement_lists"]["honor_roll"].append({
+                    "id": student_id,
+                    "name": student_data["name"],
+                    "gpa": student_data["gpa"],
+                    "courses": student_data["courses"]
+                })
+    
+    # Sort performance lists by GPA
+    results["improvement_lists"]["at_risk"].sort(key=lambda x: x["gpa"])
+    results["improvement_lists"]["honor_roll"].sort(key=lambda x: x["gpa"], reverse=True)
     
     # Calculate overall statistics
     total_students = sum(c["total_students"] for c in results["courses"])
@@ -593,42 +735,303 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     
     return results
 
-# Old endpoints (commented out) for direct file uploads or mass upload processing
-# are preserved below; the updated architecture prefers using /upload_files/ and /upload_run/
-# for a clearer separation of concerns.
-#
-# @router.post("/uploadfile/")
-# async def upload_file(file: UploadFile = File(...)):
-#     file_location = os.path.join(str(UPLOAD_DIR), file.filename)
-#     with open(file_location, "wb") as f:
-#         f.write(await file.read())
-#     return {"filename": file.filename, "content_type": file.content_type, "location": file_location}
-#
-# @router.post("/mass_upload/")
-# async def mass_upload(files: List[UploadFile] = File(...)):
-#     allowed_extensions = {".run", ".grp", ".sec", ".lst"}
-#     results = []
-#     for file in files:
-#         ext = os.path.splitext(file.filename)[1].lower()
-#         if ext not in allowed_extensions:
-#             raise HTTPException(status_code=400, detail=f"File type '{ext}' is not allowed for file '{file.filename}'")
-#         file_location = os.path.join(str(UPLOAD_DIR), file.filename)
-#         with open(file_location, "wb") as f:
-#             f.write(await file.read())
-#         results.append({
-#             "filename": file.filename,
-#             "content_type": file.content_type,
-#             "location": file_location
-#         })
-#     return results
-#
-# @router.get("/run_files/")
-# async def list_run_files():
-#     run_files = [f for f in os.listdir(str(UPLOAD_DIR)) if f.lower().endswith(".run")]
-#     return {"run_files": run_files}
-#
-# @router.get("/select_run/")
-# async def select_run(filename: str):
-#     return {"message": f'Run file "{filename}" acknowledged.'}
+@router.get("/runs/{run_id}/export")
+async def export_run_to_excel(
+    run_id: str,
+    session_id: str = Depends(get_session_id)
+):
+    """
+    Exports calculation results for a specific run to Excel format.
+    """
+    if not EXCEL_EXPORT_AVAILABLE:
+        raise HTTPException(
+            status_code=501, 
+            detail="Excel export functionality is not available. Please install openpyxl package."
+        )
+    
+    run_dir = UPLOAD_DIR / session_id / "runs" / run_id
+    if not run_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
+    
+    calc_file_path = run_dir / "calculations.json"
+    if not calc_file_path.exists():
+        raise HTTPException(status_code=404, detail=f"Calculations not found for run {run_id}.")
+    
+    try:
+        # Explicitly import openpyxl here to ensure it's available
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.utils import get_column_letter
+        
+        with open(calc_file_path, "r", encoding="utf-8") as f:
+            calculations = json.load(f)
+        
+        # Generate Excel file
+        excel_path = run_dir / f"{run_id}_report.xlsx"
+        
+        # Convert Path to string for compatibility
+        file_path_str = str(excel_path)
+        
+        workbook = openpyxl.Workbook()
+        
+        # Remove default sheet
+        if "Sheet" in workbook.sheetnames:
+            sheet = workbook["Sheet"]
+            workbook.remove(sheet)
+        
+        # Create summary sheet
+        summary_sheet = workbook.create_sheet("Summary")
+        
+        # Headers and styling
+        title_font = Font(name='Arial', size=14, bold=True)
+        header_font = Font(name='Arial', size=12, bold=True)
+        header_fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+        
+        # Report title
+        summary_sheet['A1'] = f"GradeLens Report: {calculations.get('run_name', 'Unnamed Run')}"
+        summary_sheet['A1'].font = title_font
+        summary_sheet.merge_cells('A1:G1')
+        summary_sheet['A1'].alignment = Alignment(horizontal='center')
+        
+        # Report date
+        summary_sheet['A2'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        summary_sheet.merge_cells('A2:G2')
+        summary_sheet['A2'].alignment = Alignment(horizontal='center')
+        
+        # Summary statistics
+        summary_sheet['A4'] = "Overall Statistics"
+        summary_sheet['A4'].font = header_font
+        summary_sheet.merge_cells('A4:G4')
+        
+        row = 5
+        summary_sheet[f'A{row}'] = "Total Students:"
+        summary_sheet[f'B{row}'] = calculations.get("summary", {}).get("total_students", 0)
+        
+        row += 1
+        summary_sheet[f'A{row}'] = "Overall GPA:"
+        summary_sheet[f'B{row}'] = calculations.get("summary", {}).get("overall_gpa", 0)
+        
+        # Grade distribution headers
+        row += 2
+        summary_sheet[f'A{row}'] = "Grade Distribution"
+        summary_sheet[f'A{row}'].font = header_font
+        summary_sheet.merge_cells(f'A{row}:G{row}')
+        
+        row += 1
+        headers = ["Grade", "Count", "Percentage"]
+        for i, header in enumerate(headers):
+            col = chr(ord('A') + i)
+            summary_sheet[f'{col}{row}'] = header
+            summary_sheet[f'{col}{row}'].font = header_font
+            summary_sheet[f'{col}{row}'].fill = header_fill
+        
+        # Grade distribution data
+        grade_distribution = calculations.get("summary", {}).get("grade_distribution", {})
+        total_grades = sum(grade_distribution.values())
+        
+        # Sort grades in logical order: A, B, C, D, F, W, Other
+        grade_order = ["A", "B", "C", "D", "F", "W", "Other"]
+        
+        row += 1
+        for grade in grade_order:
+            count = grade_distribution.get(grade, 0)
+            percentage = (count / total_grades * 100) if total_grades > 0 else 0
+            
+            summary_sheet[f'A{row}'] = grade
+            summary_sheet[f'B{row}'] = count
+            summary_sheet[f'C{row}'] = f"{percentage:.1f}%"
+            row += 1
+        
+        # Course type analysis
+        row += 2
+        summary_sheet[f'A{row}'] = "Course Level Analysis"
+        summary_sheet[f'A{row}'].font = header_font
+        summary_sheet.merge_cells(f'A{row}:G{row}')
+        
+        row += 1
+        headers = ["Course Level", "Students", "Average GPA", "Courses"]
+        for i, header in enumerate(headers):
+            col = chr(ord('A') + i)
+            summary_sheet[f'{col}{row}'] = header
+            summary_sheet[f'{col}{row}'].font = header_font
+            summary_sheet[f'{col}{row}'].fill = header_fill
+        
+        # Course type data
+        class_types = calculations.get("class_types", {})
+        for course_type, type_data in class_types.items():
+            row += 1
+            summary_sheet[f'A{row}'] = course_type
+            summary_sheet[f'B{row}'] = type_data.get("total_students", 0)
+            summary_sheet[f'C{row}'] = type_data.get("average_gpa", 0)
+            summary_sheet[f'D{row}'] = ", ".join(type_data.get("courses", []))
+        
+        # At-risk students
+        at_risk_sheet = workbook.create_sheet("At Risk Students")
+        at_risk_sheet['A1'] = "Students At Risk (GPA < 2.0)"
+        at_risk_sheet['A1'].font = title_font
+        at_risk_sheet.merge_cells('A1:F1')
+        at_risk_sheet['A1'].alignment = Alignment(horizontal='center')
+        
+        row = 3
+        headers = ["Name", "Student ID", "GPA", "Courses", "Grades"]
+        for i, header in enumerate(headers):
+            col = chr(ord('A') + i)
+            at_risk_sheet[f'{col}{row}'] = header
+            at_risk_sheet[f'{col}{row}'].font = header_font
+            at_risk_sheet[f'{col}{row}'].fill = header_fill
+        
+        at_risk_students = calculations.get("improvement_lists", {}).get("at_risk", [])
+        for student in at_risk_students:
+            row += 1
+            at_risk_sheet[f'A{row}'] = student.get("name", "Unknown")
+            at_risk_sheet[f'B{row}'] = student.get("id", "")
+            at_risk_sheet[f'C{row}'] = student.get("gpa", 0)
+            
+            courses = [c.get("course", "") for c in student.get("courses", [])]
+            at_risk_sheet[f'D{row}'] = ", ".join(courses)
+            
+            grades = [f"{c.get('course')}: {c.get('grade')}" for c in student.get("courses", [])]
+            at_risk_sheet[f'E{row}'] = ", ".join(grades)
+        
+        # Honor roll students
+        honor_sheet = workbook.create_sheet("Honor Roll")
+        honor_sheet['A1'] = "Honor Roll Students (GPA ≥ 3.3)"
+        honor_sheet['A1'].font = title_font
+        honor_sheet.merge_cells('A1:F1')
+        honor_sheet['A1'].alignment = Alignment(horizontal='center')
+        
+        row = 3
+        headers = ["Name", "Student ID", "GPA", "Courses", "Grades"]
+        for i, header in enumerate(headers):
+            col = chr(ord('A') + i)
+            honor_sheet[f'{col}{row}'] = header
+            honor_sheet[f'{col}{row}'].font = header_font
+            honor_sheet[f'{col}{row}'].fill = header_fill
+        
+        honor_students = calculations.get("improvement_lists", {}).get("honor_roll", [])
+        for student in honor_students:
+            row += 1
+            honor_sheet[f'A{row}'] = student.get("name", "Unknown")
+            honor_sheet[f'B{row}'] = student.get("id", "")
+            honor_sheet[f'C{row}'] = student.get("gpa", 0)
+            
+            courses = [c.get("course", "") for c in student.get("courses", [])]
+            honor_sheet[f'D{row}'] = ", ".join(courses)
+            
+            grades = [f"{c.get('course')}: {c.get('grade')}" for c in student.get("courses", [])]
+            honor_sheet[f'E{row}'] = ", ".join(grades)
+        
+        # Course sheets
+        for i, course in enumerate(calculations.get("courses", [])):
+            course_name = course.get("course_name", f"Course {i+1}")
+            sheet_name = f"{course_name[:29]}"  # Excel sheet name length limit
+            
+            # Ensure sheet name is valid and unique
+            sheet_name = re.sub(r'[\\/*\[\]:?]', '', sheet_name)  # Remove invalid chars
+            if sheet_name in workbook.sheetnames:
+                sheet_name = f"{sheet_name}_{i+1}"
+                
+            course_sheet = workbook.create_sheet(sheet_name)
+            
+            # Course header
+            course_sheet['A1'] = f"Course: {course_name}"
+            course_sheet['A1'].font = title_font
+            course_sheet.merge_cells('A1:G1')
+            course_sheet['A1'].alignment = Alignment(horizontal='center')
+            
+            row = 2
+            course_sheet[f'A{row}'] = f"Type: {course.get('course_type', '')}"
+            course_sheet[f'C{row}'] = f"Total Students: {course.get('total_students', 0)}"
+            course_sheet[f'E{row}'] = f"Average GPA: {course.get('average_gpa', 0)}"
+            
+            # Grade distribution
+            row += 2
+            course_sheet[f'A{row}'] = "Grade Distribution"
+            course_sheet[f'A{row}'].font = header_font
+            
+            row += 1
+            headers = ["Grade", "Count"]
+            for j, header in enumerate(headers):
+                col = chr(ord('A') + j)
+                course_sheet[f'{col}{row}'] = header
+                course_sheet[f'{col}{row}'].font = header_font
+                course_sheet[f'{col}{row}'].fill = header_fill
+            
+            grade_distribution = course.get("grade_distribution", {})
+            for k, grade in enumerate(grade_order):
+                if grade in grade_distribution:
+                    count = grade_distribution.get(grade, 0)
+                    row_idx = row + 1 + k
+                    course_sheet[f'A{row_idx}'] = grade
+                    course_sheet[f'B{row_idx}'] = count
+            
+            # Section information
+            row += len(grade_order) + 2
+            course_sheet[f'A{row}'] = "Sections"
+            course_sheet[f'A{row}'].font = header_font
+            
+            row += 1
+            headers = ["Section", "Students", "Average GPA"]
+            for j, header in enumerate(headers):
+                col = chr(ord('A') + j)
+                course_sheet[f'{col}{row}'] = header
+                course_sheet[f'{col}{row}'].font = header_font
+                course_sheet[f'{col}{row}'].fill = header_fill
+            
+            for section in course.get("sections", []):
+                row += 1
+                course_sheet[f'A{row}'] = section.get("section_name", "")
+                course_sheet[f'B{row}'] = section.get("student_count", 0)
+                course_sheet[f'C{row}'] = section.get("average_gpa", 0)
+        
+        # FIX: Safe column width adjustment that properly handles merged cells
+        for sheet_name in workbook.sheetnames:
+            worksheet = workbook[sheet_name]
+            
+            # Set default widths for columns
+            for col_idx in range(1, 20):  # Support up to 20 columns
+                col_letter = get_column_letter(col_idx)
+                worksheet.column_dimensions[col_letter].width = 15
+            
+            # Then adjust based on content (safely)
+            for row in worksheet.iter_rows():
+                for cell in row:
+                    if isinstance(cell, openpyxl.cell.Cell) and cell.value:  # Skip merged cells
+                        col_letter = get_column_letter(cell.column)
+                        try:
+                            # Get the current width
+                            current_width = worksheet.column_dimensions[col_letter].width
+                            # Calculate new width based on content
+                            content_length = len(str(cell.value)) + 4  # Add padding
+                            # Use the larger of the current width or content length, max 50
+                            worksheet.column_dimensions[col_letter].width = min(
+                                max(current_width, content_length), 50
+                            )
+                        except:
+                            pass  # Skip any problematic cells
+        
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(file_path_str), exist_ok=True)
+        
+        # Save the workbook
+        workbook.save(file_path_str)
+        
+        print(f"Excel file saved successfully to {file_path_str}")
+        
+        return FileResponse(
+            path=file_path_str, 
+            filename=f"GradeLens_Report_{calculations.get('run_name', 'Unnamed')}.xlsx",
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except ImportError as e:
+        raise HTTPException(
+            status_code=501,
+            detail=f"Excel export is not available: {str(e)}"
+        )
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Excel export error: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Error creating Excel report: {str(e)}")
 
 app.include_router(router, prefix="/api")
