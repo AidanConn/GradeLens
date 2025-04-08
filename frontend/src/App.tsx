@@ -6,7 +6,6 @@ import {
   Typography,
   Box,
   Container,
-  Grid,
   Paper
 } from '@mui/material';
 import { FileUpload } from './components/FileUpload';
@@ -60,20 +59,24 @@ const App: React.FC = () => {
           <Typography variant="body1" sx={{ mb: 3, textAlign: 'center' }}>
             Session ID: {sessionId || "Loading..."}
           </Typography>
-          <Grid container spacing={4} sx={{ width: '100%' }}>
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 3 }}>
-                <FileUpload sessionId={sessionId} />
-              </Paper>
-            </Grid>
-            </Grid>
-            <Grid item xs={12} md={4}>
-            <Grid item xs={12} md={8}>
-              <Paper sx={{ p: 3 }}>
-                <RunFilesList sessionId={sessionId} />
-              </Paper>
-            </Grid>
-          </Grid>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+              minHeight: '400px',
+              mt: 2,
+            }}
+>
+            <Paper sx={{ p: 3, width: '100%', maxWidth: 500 }}>
+              <FileUpload sessionId={sessionId} />
+            </Paper>
+
+            <Paper sx={{ p: 3, width: '100%' }}>
+              <RunFilesList sessionId={sessionId} />
+            </Paper>
+          </Box>
         </Container>
         <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f5f5f5', width: '100%' }}>
           <Typography variant="body2" color="textSecondary">
