@@ -72,9 +72,9 @@ export function FileUpload({ sessionId }: FileUploadProps) {
   return (
     <Box sx={{ mb: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Upload Common Files (.sec, .grp, .lst)
+        Upload Common Files (.sec, .grp)
       </Typography>
-      <Input type="file" inputProps={{ multiple: true, accept: '.sec,.grp,.lst' }} onChange={handleCommonFilesChange} />
+      <Input type="file" inputProps={{ multiple: true, accept: '.sec,.grp' }} onChange={handleCommonFilesChange} />
       <Box sx={{ mt: 2, mb: 3 }}>
         <Button variant="contained" color="primary" startIcon={<CloudUploadIcon />} onClick={uploadCommonFiles}>
           Upload Common Files

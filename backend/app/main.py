@@ -439,7 +439,7 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
         "students": {},  # Track students across all courses
         "class_types": {},  # For storing metrics by course type/level
         "improvement_lists": {
-            "at_risk": [],  # Students who need improvement (below C average)
+            "work_list": [],  # Students who need improvement (below C average)
             "honor_roll": []  # Students performing well (B+ or better)
         }
     }
@@ -681,14 +681,14 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             
             # Categorize student performance
             if student_data["gpa"] < 2.0:  # Below C average
-                results["improvement_lists"]["at_risk"].append({
+                results["improvement_lists"]["work_list"].append({
                     "id": student_id,
                     "name": student_data["name"],
                     "gpa": student_data["gpa"],
                     "courses": student_data["courses"]
                 })
             elif student_data["gpa"] >= 3.3:  # B+ or better
-                results["improvement_lists"]["honor_roll"].append({
+                results["improvement_lists"]["good_list"].append({
                     "id": student_id,
                     "name": student_data["name"],
                     "gpa": student_data["gpa"],
@@ -696,8 +696,8 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                 })
     
     # Sort performance lists by GPA
-    results["improvement_lists"]["at_risk"].sort(key=lambda x: x["gpa"])
-    results["improvement_lists"]["honor_roll"].sort(key=lambda x: x["gpa"], reverse=True)
+    results["improvement_lists"]["work_list"].sort(key=lambda x: x["gpa"])
+    results["improvement_lists"]["good_list"].sort(key=lambda x: x["gpa"], reverse=True)
     
     # Calculate overall statistics
     total_students = sum(c["total_students"] for c in results["courses"])
@@ -865,61 +865,61 @@ async def export_run_to_excel(
             summary_sheet[f'C{row}'] = type_data.get("average_gpa", 0)
             summary_sheet[f'D{row}'] = ", ".join(type_data.get("courses", []))
         
-        # At-risk students
-        at_risk_sheet = workbook.create_sheet("At Risk Students")
-        at_risk_sheet['A1'] = "Students At Risk (GPA < 2.0)"
-        at_risk_sheet['A1'].font = title_font
-        at_risk_sheet.merge_cells('A1:F1')
-        at_risk_sheet['A1'].alignment = Alignment(horizontal='center')
+        # Work-list students
+        work_list_sheet = workbook.create_sheet("Work List Students")
+        work_list_sheet['A1'] = "Students On Work List (GPA < 2.0)"
+        work_list_sheet['A1'].font = title_font
+        work_list_sheet.merge_cells('A1:F1')
+        work_list_sheet['A1'].alignment = Alignment(horizontal='center')
         
         row = 3
         headers = ["Name", "Student ID", "GPA", "Courses", "Grades"]
         for i, header in enumerate(headers):
             col = chr(ord('A') + i)
-            at_risk_sheet[f'{col}{row}'] = header
-            at_risk_sheet[f'{col}{row}'].font = header_font
-            at_risk_sheet[f'{col}{row}'].fill = header_fill
+            work_list_sheet[f'{col}{row}'] = header
+            work_list_sheet[f'{col}{row}'].font = header_font
+            work_list_sheet[f'{col}{row}'].fill = header_fill
         
-        at_risk_students = calculations.get("improvement_lists", {}).get("at_risk", [])
-        for student in at_risk_students:
+        work_list_students = calculations.get("improvement_lists", {}).get("work_list", [])
+        for student in work_list_students:
             row += 1
-            at_risk_sheet[f'A{row}'] = student.get("name", "Unknown")
-            at_risk_sheet[f'B{row}'] = student.get("id", "")
-            at_risk_sheet[f'C{row}'] = student.get("gpa", 0)
+            work_list_sheet[f'A{row}'] = student.get("name", "Unknown")
+            work_list_sheet[f'B{row}'] = student.get("id", "")
+            work_list_sheet[f'C{row}'] = student.get("gpa", 0)
             
             courses = [c.get("course", "") for c in student.get("courses", [])]
-            at_risk_sheet[f'D{row}'] = ", ".join(courses)
+            work_list_sheet[f'D{row}'] = ", ".join(courses)
             
             grades = [f"{c.get('course')}: {c.get('grade')}" for c in student.get("courses", [])]
-            at_risk_sheet[f'E{row}'] = ", ".join(grades)
+            work_list_sheet[f'E{row}'] = ", ".join(grades)
         
-        # Honor roll students
-        honor_sheet = workbook.create_sheet("Honor Roll")
-        honor_sheet['A1'] = "Honor Roll Students (GPA ≥ 3.3)"
-        honor_sheet['A1'].font = title_font
-        honor_sheet.merge_cells('A1:F1')
-        honor_sheet['A1'].alignment = Alignment(horizontal='center')
+        # Good list students
+        good_list = workbook.create_sheet("Good List Students")
+        good_list['A1'] = "Good List Students (GPA ≥ 3.3)"
+        good_list['A1'].font = title_font
+        good_list.merge_cells('A1:F1')
+        good_list['A1'].alignment = Alignment(horizontal='center')
         
         row = 3
         headers = ["Name", "Student ID", "GPA", "Courses", "Grades"]
         for i, header in enumerate(headers):
             col = chr(ord('A') + i)
-            honor_sheet[f'{col}{row}'] = header
-            honor_sheet[f'{col}{row}'].font = header_font
-            honor_sheet[f'{col}{row}'].fill = header_fill
+            good_list[f'{col}{row}'] = header
+            good_list[f'{col}{row}'].font = header_font
+            good_list[f'{col}{row}'].fill = header_fill
         
-        honor_students = calculations.get("improvement_lists", {}).get("honor_roll", [])
-        for student in honor_students:
+        good_students = calculations.get("improvement_lists", {}).get("good_list", [])
+        for student in good_students:
             row += 1
-            honor_sheet[f'A{row}'] = student.get("name", "Unknown")
-            honor_sheet[f'B{row}'] = student.get("id", "")
-            honor_sheet[f'C{row}'] = student.get("gpa", 0)
+            good_list[f'A{row}'] = student.get("name", "Unknown")
+            good_list[f'B{row}'] = student.get("id", "")
+            good_list[f'C{row}'] = student.get("gpa", 0)
             
             courses = [c.get("course", "") for c in student.get("courses", [])]
-            honor_sheet[f'D{row}'] = ", ".join(courses)
+            good_list[f'D{row}'] = ", ".join(courses)
             
             grades = [f"{c.get('course')}: {c.get('grade')}" for c in student.get("courses", [])]
-            honor_sheet[f'E{row}'] = ", ".join(grades)
+            good_list[f'E{row}'] = ", ".join(grades)
         
         # Course sheets
         for i, course in enumerate(calculations.get("courses", [])):
