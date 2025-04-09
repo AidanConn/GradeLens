@@ -81,6 +81,34 @@ const COLORS = [
   '#607d8b', // Other - Blue Gray
 ];
 
+/**
+ * A component that visualizes grade distribution data for courses and sections.
+ * 
+ * @component
+ * @param {Object} props - The component props
+ * @param {Object} props.data - The grade data to visualize
+ * @param {string} props.data.run_name - The name of the data run being displayed
+ * @param {Object} [props.data.summary] - Overall summary of grade distribution
+ * @param {Object} props.data.summary.grade_distribution - Basic grade distribution for all courses
+ * @param {Object} props.data.summary.detailed_grade_distribution - Detailed grade distribution for all courses
+ * @param {Array<Object>} props.data.courses - Array of course objects
+ * @param {string} props.data.courses[].course_name - The name of the course
+ * @param {Object} props.data.courses[].grade_distribution - Basic grade distribution for the course
+ * @param {Object} props.data.courses[].detailed_grade_distribution - Detailed grade distribution for the course
+ * @param {Array<Object>} props.data.courses[].sections - Array of section objects for the course
+ * @param {string} props.data.courses[].sections[].section_name - The name of the section
+ * @param {number} props.data.courses[].sections[].student_count - Number of students in the section
+ * @param {number} props.data.courses[].sections[].average_gpa - Average GPA for the section
+ * @param {Object} props.data.courses[].sections[].grade_distribution - Basic grade distribution for the section
+ * @param {Object} props.data.courses[].sections[].detailed_grade_distribution - Detailed grade distribution for the section
+ * 
+ * @returns {JSX.Element} A component that shows:
+ *   - A dropdown to select courses (including "Overall Summary")
+ *   - Toggle buttons to switch between basic/detailed grade distributions
+ *   - Toggle buttons to switch between bar chart and pie chart views
+ *   - Charts visualizing the selected grade distribution data
+ *   - Section comparisons when a specific course is selected
+ */
 export function DataVisualization({ data }: DataVisualizationProps) {
   const [selectedCourse, setSelectedCourse] = useState('all');
   const [selectedChartType, setSelectedChartType] = useState('basic');
@@ -103,6 +131,8 @@ export function DataVisualization({ data }: DataVisualizationProps) {
     }))
   ];
 
+  // Handle chart view changes
+  // This function is called when the user selects a different chart view (bar/pie)
   const handleChartViewChange = (
     _event: React.MouseEvent<HTMLElement>,
     newView: 'bar' | 'pie' | null,
@@ -112,6 +142,9 @@ export function DataVisualization({ data }: DataVisualizationProps) {
     }
   };
 
+  // Handle chart type changes
+  // This function is called when the user selects a different chart type (basic/detailed)
+  // It updates the selected chart type in the state
   const handleChartTypeChange = (
     _event: React.MouseEvent<HTMLElement>,
     newType: string | null,

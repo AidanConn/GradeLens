@@ -75,6 +75,33 @@ const createPieData = (distribution: any) => {
   }));
 };
 
+/**
+ * A versatile data visualization component for educational data that provides multiple display modes.
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.data - The data object containing students, courses, sections, and summary information
+ * @param {Object} [props.data.students] - Student records indexed by student ID
+ * @param {Object[]} [props.data.courses] - Array of course objects with details and statistics
+ * @param {Object} [props.data.summary] - Summary statistics about all students and courses
+ * @param {Object} [props.data.class_types] - Information about different course types
+ * @param {Object} [props.data.improvement_lists] - Lists of students requiring attention
+ * @param {'summary' | 'courses' | 'sections' | 'students'} props.displayType - Controls which view to display
+ * @param {string} [props.searchTerm=''] - Optional search term to filter student data
+ * 
+ * @returns {JSX.Element} The appropriate view based on displayType:
+ *   - summary: Overall statistics, grade distributions, and students needing attention
+ *   - courses: Detailed course information with grade distributions
+ *   - sections: Section-level statistics and grade distributions
+ *   - students: Filterable and sortable student table with pagination
+ * 
+ * @example
+ * <EnhancedDataDisplay 
+ *   data={academicData} 
+ *   displayType="summary" 
+ *   searchTerm="smith"
+ * />
+ */
 export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   data,
   displayType,
@@ -252,7 +279,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
 
         {data.improvement_lists && (
           <Box mt={4}>
-            <Typography variant="h6" gutterBottom>Student on Work List</Typography>
+            <Typography variant="h6" gutterBottom>Students on Work List</Typography>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
@@ -590,6 +617,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
     );
   };
 
+  // Render the appropriate view based on displayType
   switch (displayType) {
     case 'summary':
       return renderSummaryView();

@@ -433,14 +433,15 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     
     # Initialize results
     results = {
-        "run_name": run_name,
-        "processed_at": datetime.utcnow().isoformat(),
+        "run_name": associated_files.get("run_name", "Unnamed Run"),
         "courses": [],
-        "students": {},  # Track students across all courses
-        "class_types": {},  # For storing metrics by course type/level
+        "class_types": {},
+        "students": {},
         "improvement_lists": {
-            "work_list": [],  # Students who need improvement (below C average)
-            "honor_roll": []  # Students performing well (B+ or better)
+            "work_list": [],  # Students needing improvement
+            "at_risk": [],    # Students at risk of failing
+            "honor_roll": [], # Students performing exceptionally well
+            "good_list": []   # Students performing well (B+ or better)
         }
     }
     
@@ -700,7 +701,10 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     results["improvement_lists"]["good_list"].sort(key=lambda x: x["gpa"], reverse=True)
     
     # Calculate overall statistics
-    total_students = sum(c["total_students"] for c in results["courses"])
+    # Instead of summing course totals, count unique student IDs
+    unique_student_ids = set(results["students"].keys())
+    total_students = len(unique_student_ids)
+    
     overall_grades = {category: 0 for category in grade_categories}
     detailed_grades = {grade: 0 for grade in grade_values.keys()}
     
@@ -727,7 +731,7 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
         overall_gpa = round(overall_total_points / overall_graded_students, 2)
     
     results["summary"] = {
-        "total_students": total_students,
+        "total_students": total_students,  # Now this is unique student count
         "grade_distribution": overall_grades,
         "detailed_grade_distribution": detailed_grades,  
         "overall_gpa": overall_gpa

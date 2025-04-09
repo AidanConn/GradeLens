@@ -53,7 +53,21 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
 
   useEffect(() => {
     fetchRuns();
-  }, [sessionId]);
+
+    // Add an event listener for the refresh event
+    const handleRefreshEvent = () => {
+      if (sessionId) {
+        fetchRuns();
+      }
+    };
+    
+    window.addEventListener('refresh-runs', handleRefreshEvent);
+    
+    // Cleanup function
+    return () => {
+      window.removeEventListener('refresh-runs', handleRefreshEvent);
+    };
+  }, [sessionId]); // Make sure to include sessionId in the dependency array
 
   const handleSelect = async (runId: string) => {
     if (!sessionId) return;

@@ -68,12 +68,12 @@ const App: React.FC = () => {
               minHeight: '400px',
               mt: 2,
             }}
->
-            <Paper sx={{ p: 3, width: '100%', maxWidth: 500 }}>
+          >
+            <Paper id="upload-section" sx={{ p: 3, width: '100%', maxWidth: 500 }}>
               <FileUpload sessionId={sessionId} />
             </Paper>
 
-            <Paper sx={{ p: 3, width: '100%' }}>
+            <Paper id="runs-section" sx={{ p: 3, width: '100%' }} data-testid="runs-list">
               <RunFilesList sessionId={sessionId} />
             </Paper>
           </Box>
