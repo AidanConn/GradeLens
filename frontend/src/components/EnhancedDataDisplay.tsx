@@ -252,7 +252,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
 
         {data.improvement_lists && (
           <Box mt={4}>
-            <Typography variant="h6" gutterBottom>Students At Risk</Typography>
+            <Typography variant="h6" gutterBottom>Student on Work List</Typography>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
@@ -264,7 +264,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {data.improvement_lists.at_risk.slice(0, 10).map((student: any) => (
+                  {data.improvement_lists.work_list.slice(0, 10).map((student: any) => (
                     <TableRow key={student.id}>
                       <TableCell>{student.name}</TableCell>
                       <TableCell>{student.id}</TableCell>

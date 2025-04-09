@@ -248,7 +248,7 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
                   <Tab label="Course Details" />
                   <Tab label="Sections" />
                   <Tab label="Students" />
-                  <Tab label="Raw JSON" />
+                  {/*<Tab label="Raw JSON" />*/}
                 </Tabs>
 
                 {activeTab === 0 && (
