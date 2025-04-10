@@ -187,11 +187,11 @@ export function DataVisualization({ data }: DataVisualizationProps) {
 
   return (
     <Box>
-      <Typography variant="h6">{data.run_name} - Grade Visualization</Typography>
+      <Typography variant="h6">{data.run_name} - Grade Visualization | Old View</Typography>
       
       <Box sx={{ display: 'flex', gap: 2, my: 2, flexWrap: 'wrap' }}>
         <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="course-select-label">Course</InputLabel>
+          <InputLabel id="course-select-label">Course Level</InputLabel>
           <Select
             labelId="course-select-label"
             id="course-select"
