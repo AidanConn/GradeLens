@@ -719,6 +719,7 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     
     # Calculate overall statistics
     unique_student_ids = set(results["students"].keys())
+    # Count unique students across all courses
     total_students = len(unique_student_ids)
     
     overall_grades = {category: 0 for category in grade_categories}
