@@ -956,7 +956,7 @@ async def export_run_to_excel(
             course_sheet = workbook.create_sheet(sheet_name)
             
             # Course header
-            course_sheet['A1'] = f"Course: {course_name}"
+            course_sheet['A1'] = f"Group: {course_name}"
             course_sheet['A1'].font = title_font
             course_sheet.merge_cells('A1:G1')
             course_sheet['A1'].alignment = Alignment(horizontal='center')

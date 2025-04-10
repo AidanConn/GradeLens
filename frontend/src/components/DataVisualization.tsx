@@ -191,7 +191,7 @@ export function DataVisualization({ data }: DataVisualizationProps) {
       
       <Box sx={{ display: 'flex', gap: 2, my: 2, flexWrap: 'wrap' }}>
         <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="course-select-label">Course Level</InputLabel>
+          <InputLabel id="course-select-label">Group</InputLabel>
           <Select
             labelId="course-select-label"
             id="course-select"
