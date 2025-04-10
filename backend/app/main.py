@@ -526,10 +526,12 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
         
         # Track course-level metrics
         total_grade_points = 0.0
+        total_credit_hours = 0.0
         total_graded_students = 0
         
         # Track class-type metrics
         class_type_grade_points = 0.0
+        class_type_credit_hours = 0.0
         class_type_graded_students = 0
         
         # Process each section in the GRP file
@@ -551,8 +553,14 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             students = section_data.get("students", [])
             section_info = section_data.get("course", {})
             
+            # Get credit hours for this section
+            credit_hours = section_info.get("credit_hours", 3.0)  # Default to 3.0 if not specified
+            if credit_hours is None:
+                credit_hours = 3.0  # Default if explicitly None
+                
             section_results = {
                 "section_name": section,
+                "credit_hours": credit_hours,
                 "student_count": len(students),
                 "grade_distribution": {category: 0 for category in grade_categories},
                 "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
@@ -577,7 +585,8 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                     "grade_point": grade_values.get(grade, None),
                     "section": section,
                     "course": course_name,
-                    "course_type": course_type
+                    "course_type": course_type,
+                    "credit_hours": credit_hours
                 }
                 
                 # Add to section students list
@@ -593,6 +602,7 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                         "id": student_id,
                         "courses": [],
                         "total_grade_points": 0.0,
+                        "total_credit_hours": 0.0,
                         "total_courses": 0,
                         "gpa": 0.0
                     }
@@ -612,13 +622,19 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                             results["class_types"][course_type]["grade_distribution"][category] += 1
                             break
                     
-                    # Calculate GPA
+                    # Calculate GPA with credit hours weighting
                     grade_point = grade_values[grade]
-                    section_total_points += grade_point
+                    weighted_grade_point = grade_point * credit_hours
+                    
+                    section_total_points += weighted_grade_point
                     section_graded_students += 1
-                    total_grade_points += grade_point
+                    
+                    total_grade_points += weighted_grade_point
+                    total_credit_hours += credit_hours
                     total_graded_students += 1
-                    class_type_grade_points += grade_point
+                    
+                    class_type_grade_points += weighted_grade_point
+                    class_type_credit_hours += credit_hours
                     class_type_graded_students += 1
                     
                     # Update student cross-course records
@@ -627,9 +643,12 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                         "section": section,
                         "grade": grade,
                         "grade_point": grade_point,
+                        "credit_hours": credit_hours,
+                        "weighted_points": weighted_grade_point,
                         "course_type": course_type
                     })
-                    results["students"][student_id]["total_grade_points"] += grade_point
+                    results["students"][student_id]["total_grade_points"] += weighted_grade_point
+                    results["students"][student_id]["total_credit_hours"] += credit_hours
                     results["students"][student_id]["total_courses"] += 1
                 
                 elif grade == "W":
@@ -643,9 +662,9 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                     course_results["grade_distribution"]["Other"] += 1
                     results["class_types"][course_type]["grade_distribution"]["Other"] += 1
             
-            # Calculate section GPA
-            if section_graded_students > 0:
-                section_results["average_gpa"] = round(section_total_points / section_graded_students, 2)
+            # Calculate section GPA - use credit hours if available
+            if section_graded_students > 0 and credit_hours > 0:
+                section_results["average_gpa"] = round(section_total_points / (section_graded_students * credit_hours), 2)
             else:
                 section_results["average_gpa"] = 0.0
             
@@ -653,32 +672,28 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             results["class_types"][course_type]["total_students"] += section_results["student_count"]
             course_results["sections"].append(section_results)
         
-        # Calculate course GPA
-        if total_graded_students > 0:
-            course_results["average_gpa"] = round(total_grade_points / total_graded_students, 2)
+        # Calculate course GPA using credit hours weighting
+        if total_graded_students > 0 and total_credit_hours > 0:
+            course_results["average_gpa"] = round(total_grade_points / total_credit_hours, 2)
             
         results["courses"].append(course_results)
         results["class_types"][course_type]["courses"].append(course_name)
     
-    # Calculate class type GPAs
+    # Calculate class type GPAs using credit hours weighting
     for course_type, data in results["class_types"].items():
-        if data["total_students"] > 0:
-            class_type_grade_points = sum(
-                grade_values[grade] * count 
-                for grade, count in data["detailed_grade_distribution"].items() 
-                if grade in grade_values
-            )
-            class_type_graded_students = sum(
-                count for grade, count in data["detailed_grade_distribution"].items() 
-                if grade in grade_values
-            )
-            if class_type_graded_students > 0:
-                data["average_gpa"] = round(class_type_grade_points / class_type_graded_students, 2)
+        data["total_credit_hours"] = sum(
+            grade_values[grade] * count * 3.0  # Use default 3.0 credits if no better information
+            for grade, count in data["detailed_grade_distribution"].items() 
+            if grade in grade_values
+        )
+        
+        if class_type_credit_hours > 0:
+            data["average_gpa"] = round(class_type_grade_points / class_type_credit_hours, 2)
     
-    # Calculate per-student GPA and categorize students
+    # Calculate per-student GPA using credit hours weighting
     for student_id, student_data in results["students"].items():
-        if student_data["total_courses"] > 0:
-            student_data["gpa"] = round(student_data["total_grade_points"] / student_data["total_courses"], 2)
+        if student_data["total_credit_hours"] > 0:
+            student_data["gpa"] = round(student_data["total_grade_points"] / student_data["total_credit_hours"], 2)
             
             # Categorize student performance
             if student_data["gpa"] < 2.0:  # Below C average
@@ -701,7 +716,6 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     results["improvement_lists"]["good_list"].sort(key=lambda x: x["gpa"], reverse=True)
     
     # Calculate overall statistics
-    # Instead of summing course totals, count unique student IDs
     unique_student_ids = set(results["students"].keys())
     total_students = len(unique_student_ids)
     
@@ -717,24 +731,25 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             if category in overall_grades:
                 overall_grades[category] += count
     
-    # Calculate overall GPA
+    # Calculate overall GPA with credit hour weighting
     overall_total_points = 0.0
-    overall_graded_students = 0
+    overall_total_credits = 0.0
     
-    for grade, count in detailed_grades.items():
-        if grade in grade_values:
-            overall_total_points += grade_values[grade] * count
-            overall_graded_students += count
+    # Use the student-level data to calculate the overall GPA
+    for student_id, student_data in results["students"].items():
+        overall_total_points += student_data["total_grade_points"]
+        overall_total_credits += student_data["total_credit_hours"]
     
     overall_gpa = 0.0
-    if overall_graded_students > 0:
-        overall_gpa = round(overall_total_points / overall_graded_students, 2)
+    if overall_total_credits > 0:
+        overall_gpa = round(overall_total_points / overall_total_credits, 2)
     
     results["summary"] = {
-        "total_students": total_students,  # Now this is unique student count
+        "total_students": total_students,
         "grade_distribution": overall_grades,
-        "detailed_grade_distribution": detailed_grades,  
-        "overall_gpa": overall_gpa
+        "detailed_grade_distribution": detailed_grades,
+        "overall_gpa": overall_gpa,
+        "total_credit_hours": overall_total_credits
     }
     
     return results

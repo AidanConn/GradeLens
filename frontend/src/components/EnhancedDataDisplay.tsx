@@ -54,6 +54,8 @@ const getGradeColor = (grade: string) => {
     'D': '#ff9800',
     'F': '#f44336',
     'W': '#9e9e9e',
+    'I': '#9c27b0',    // Purple for Incomplete
+    'NP': '#3f51b5',   // Indigo for No Pass
     'Other': '#607d8b',
   };
 
@@ -63,6 +65,8 @@ const getGradeColor = (grade: string) => {
   if (grade.startsWith('D')) return gradeColors['D'];
   if (grade === 'F') return gradeColors['F'];
   if (grade === 'W') return gradeColors['W'];
+  if (grade === 'I') return gradeColors['I'];
+  if (grade === 'NP') return gradeColors['NP'];
   return gradeColors['Other'];
 };
 
@@ -139,32 +143,33 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   const courseOptions = data.courses
     ? ['all', ...data.courses.map((course: any) => course.course_name)]
     : ['all'];
-  
+
   // Generate section options
   const sectionOptions = data.courses
-    ? ['all', ...data.courses.flatMap((course: any) => 
-        course.sections.map((section: any) => section.section_name)
-      )]
+    ? ['all', ...data.courses.flatMap((course: any) =>
+      course.sections.map((section: any) => section.section_name)
+    )]
     : ['all'];
 
   // Filter students based on search term and selected filters
   const filteredStudents = data.students
     ? Object.values(data.students).filter((student: any) => {
-        const matchesSearch = searchTerm === '' || 
-          student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          student.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          student.courses.some((c: any) => c.grade.toLowerCase().includes(searchTerm.toLowerCase()));
-        
-        const matchesCourse = selectedCourse === 'all' || 
-          student.courses.some((c: any) => c.course === selectedCourse);
-        
-        const matchesSection = selectedSection === 'all' || 
-          student.courses.some((c: any) => c.section === selectedSection);
-        
-        return matchesSearch && matchesCourse && matchesSection;
-      })
+      const matchesSearch = searchTerm === '' ||
+        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.courses.some((c: any) => c.grade.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesCourse = selectedCourse === 'all' ||
+        student.courses.some((c: any) => c.course === selectedCourse);
+
+      const matchesSection = selectedSection === 'all' ||
+        student.courses.some((c: any) => c.section === selectedSection);
+
+      return matchesSearch && matchesCourse && matchesSection;
+    })
     : [];
 
+  // Sort students based on selected order and orderBy property
   const sortedStudents = [...filteredStudents].sort((a: any, b: any) => {
     let aValue, bValue;
 
@@ -188,12 +193,14 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
     }
   });
 
+  // Simple pagination logic
   const paginatedStudents = sortedStudents.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
 
   const renderSummaryView = () => {
+    // Check if summary data is available
     if (!data.summary) return <Alert severity="info">No summary data available</Alert>;
 
     const { total_students, grade_distribution, detailed_grade_distribution, overall_gpa } = data.summary;
@@ -202,6 +209,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
 
     return (
       <Box>
+        {/* Summary Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} md={4}>
             <Card variant="outlined">
@@ -233,6 +241,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
           </Grid>
         </Grid>
 
+        {/* Grade Distribution Charts */}
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Typography variant="h6" gutterBottom>Grade Distribution</Typography>
@@ -257,7 +266,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
               </PieChart>
             </ResponsiveContainer>
           </Grid>
-
+          {/* Detailed Grade Distribution */}
           <Grid item xs={12} md={6}>
             <Typography variant="h6" gutterBottom>Detailed Grade Distribution</Typography>
             <ResponsiveContainer width="100%" height={300}>
@@ -277,7 +286,8 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
           </Grid>
         </Grid>
 
-        {data.improvement_lists && (
+        {/* Need Attention Students */}
+        {data.improvement_lists && data.improvement_lists.work_list && (
           <Box mt={4}>
             <Typography variant="h6" gutterBottom>Students on Work List</Typography>
             <TableContainer component={Paper} variant="outlined">
@@ -297,15 +307,74 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                       <TableCell>{student.id}</TableCell>
                       <TableCell>{student.gpa.toFixed(2)}</TableCell>
                       <TableCell>
-                        {student.courses.map((course: any) => (
-                          <Chip
-                            key={`${student.id}-${course.course}`}
-                            label={`${course.course}: ${course.grade}`}
-                            size="small"
-                            color="error"
-                            sx={{ m: 0.3 }}
-                          />
-                        ))}
+                        {student.courses.map((course: any) => {
+                          // Determine if this is a special grade that doesn't affect GPA
+                          const isSpecialGrade = ['W', 'I', 'NP'].includes(course.grade);
+
+                          return (
+                            <Chip
+                              key={`${student.id}-${course.course}`}
+                              label={`${course.course}: ${course.grade} (${course.credit_hours} cr)`}
+                              size="small"
+                              color={isSpecialGrade ? "default" : "error"}
+                              sx={{
+                                m: 0.3,
+                                fontStyle: isSpecialGrade ? 'italic' : 'normal',
+                                bgcolor: isSpecialGrade ? getGradeColor(course.grade) : undefined,
+                                color: isSpecialGrade ? 'white' : undefined
+                              }}
+                            />
+                          );
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        )}
+
+        {/* Good List Students */}
+        {data.improvement_lists && data.improvement_lists.good_list && (
+          <Box mt={4}>
+            <Typography variant="h6" gutterBottom>Students on Good List</Typography>
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                    <TableCell>ID</TableCell>
+                    <TableCell>GPA</TableCell>
+                    <TableCell>Courses</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.improvement_lists.good_list.slice(0, 10).map((student: any) => (
+                    <TableRow key={student.id}>
+                      <TableCell>{student.name}</TableCell>
+                      <TableCell>{student.id}</TableCell>
+                      <TableCell>{student.gpa.toFixed(2)}</TableCell>
+                      <TableCell>
+                        {student.courses.map((course: any) => {
+                          // Determine if this is a special grade that doesn't affect GPA
+                          const isSpecialGrade = ['W', 'I', 'NP'].includes(course.grade);
+
+                          return (
+                            <Chip
+                              key={`${student.id}-${course.course}`}
+                              label={`${course.course}: ${course.grade} (${course.credit_hours} cr)`}
+                              size="small"
+                              color={isSpecialGrade ? "default" : "success"}
+                              sx={{
+                                m: 0.3,
+                                fontStyle: isSpecialGrade ? 'italic' : 'normal',
+                                bgcolor: isSpecialGrade ? getGradeColor(course.grade) : undefined,
+                                color: isSpecialGrade ? 'white' : undefined
+                              }}
+                            />
+                          );
+                        })}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -365,7 +434,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="subtitle1" fontWeight="bold">
-                  {course.course_name} ({course.course_type})
+                  {course.course_name} ({course.course_type}) - {course.sections[0]?.credit_hours || 0} Credits
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2 }}>
                   <Typography variant="body2">Students: {course.total_students}</Typography>
@@ -382,7 +451,9 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="grade" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(value, name) => {
+                        return [`${value} students (${course.sections[0]?.credit_hours || 0} cr)`, `Grade: ${name}`];
+                      }} />
                       <Bar dataKey="count" fill="#8884d8">
                         {Object.entries(course.grade_distribution).map(([key, _value], index) => (
                           <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
@@ -398,7 +469,9 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="grade" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(value, name, _props) => {
+                        return [`${value} students (${course.sections[0]?.credit_hours || 0} cr)`, `Grade: ${name}`];
+                      }} />
                       <Bar dataKey="count" fill="#8884d8">
                         {Object.entries(course.detailed_grade_distribution).map(([key, _value], index) => (
                           <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
@@ -445,7 +518,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
           .map((course: any) => (
             <Box key={course.course_name} mb={4}>
               <Typography variant="h6" gutterBottom>
-                {course.course_name} Sections
+                {course.course_name} Sections - {course.sections[0]?.credit_hours || 0} Credit Hours
               </Typography>
 
               <Grid container spacing={2}>
@@ -461,21 +534,26 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                             Students: {section.student_count}
                           </Typography>
                           <Typography variant="body2">
+                            Credits: {section.credit_hours}
+                          </Typography>
+                          <Typography variant="body2">
                             Avg GPA: {section.average_gpa.toFixed(2)}
                           </Typography>
                         </Box>
 
                         <ResponsiveContainer width="100%" height={200}>
-                          <BarChart 
-                            data={Object.entries(section.grade_distribution).map(([key, value]) => ({ 
-                              grade: key, 
-                              count: value 
+                          <BarChart
+                            data={Object.entries(section.grade_distribution).map(([key, value]) => ({
+                              grade: key,
+                              count: value
                             }))}
                           >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="grade" />
                             <YAxis />
-                            <Tooltip />
+                            <Tooltip formatter={(value, name) => {
+                              return [`${value} students (${section.credit_hours} cr)`, `Grade: ${name}`];
+                            }} />
                             <Bar dataKey="count" fill="#8884d8">
                               {Object.entries(section.grade_distribution).map(([key, _value], index) => (
                                 <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
@@ -579,18 +657,25 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                     <TableCell>{student.id}</TableCell>
                     <TableCell>{student.gpa.toFixed(2)}</TableCell>
                     <TableCell>
-                      {student.courses.map((course: any) => (
-                        <Chip
-                          key={`${student.id}-${course.course}-${course.section}`}
-                          label={`${course.course} (${course.grade})`}
-                          size="small"
-                          sx={{ 
-                            m: 0.3, 
-                            bgcolor: getGradeColor(course.grade),
-                            color: ['A', 'B'].includes(course.grade.charAt(0)) ? 'white' : 'black'
-                          }}
-                        />
-                      ))}
+                      {student.courses.map((course: any) => {
+                        // Determine if this is a special grade that doesn't affect GPA
+                        const isSpecialGrade = ['W', 'I', 'NP'].includes(course.grade);
+
+                        return (
+                          <Chip
+                            key={`${student.id}-${course.course}-${course.section}`}
+                            label={`${course.course} (${course.grade}) - ${course.credit_hours} cr`}
+                            size="small"
+                            sx={{
+                              m: 0.3,
+                              bgcolor: getGradeColor(course.grade),
+                              color: isSpecialGrade ? 'white' :
+                                ['A', 'B'].includes(course.grade.charAt(0)) ? 'white' : 'black',
+                              fontStyle: isSpecialGrade ? 'italic' : 'normal'
+                            }}
+                          />
+                        );
+                      })}
                     </TableCell>
                   </TableRow>
                 ))
