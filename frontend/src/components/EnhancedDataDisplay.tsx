@@ -314,7 +314,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                           return (
                             <Chip
                               key={`${student.id}-${course.course}`}
-                              label={`${course.course}: ${course.grade} (${course.credit_hours} cr)`}
+                              label={`${course.course}: ${course.grade} (${course.credit_hours} cr.)`}
                               size="small"
                               color={isSpecialGrade ? "default" : "error"}
                               sx={{
@@ -363,7 +363,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                           return (
                             <Chip
                               key={`${student.id}-${course.course}`}
-                              label={`${course.course}: ${course.grade} (${course.credit_hours} cr)`}
+                              label={`${course.course}: ${course.grade} (${course.credit_hours} cr.)`}
                               size="small"
                               color={isSpecialGrade ? "default" : "success"}
                               sx={{
@@ -452,7 +452,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                       <XAxis dataKey="grade" />
                       <YAxis />
                       <Tooltip formatter={(value, name) => {
-                        return [`${value} students (${course.sections[0]?.credit_hours || 0} cr)`, `Grade: ${name}`];
+                        return [`${value} students (${course.sections[0]?.credit_hours || 0} cr.)`, `Grade: ${name}`];
                       }} />
                       <Bar dataKey="count" fill="#8884d8">
                         {Object.entries(course.grade_distribution).map(([key, _value], index) => (
@@ -470,7 +470,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                       <XAxis dataKey="grade" />
                       <YAxis />
                       <Tooltip formatter={(value, name, _props) => {
-                        return [`${value} students (${course.sections[0]?.credit_hours || 0} cr)`, `Grade: ${name}`];
+                        return [`${value} students (${course.sections[0]?.credit_hours || 0} cr.)`, `Grade: ${name}`];
                       }} />
                       <Bar dataKey="count" fill="#8884d8">
                         {Object.entries(course.detailed_grade_distribution).map(([key, _value], index) => (
@@ -552,7 +552,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                             <XAxis dataKey="grade" />
                             <YAxis />
                             <Tooltip formatter={(value, name) => {
-                              return [`${value} students (${section.credit_hours} cr)`, `Grade: ${name}`];
+                              return [`${value} students (${section.credit_hours} cr.)`, `Grade: ${name}`];
                             }} />
                             <Bar dataKey="count" fill="#8884d8">
                               {Object.entries(section.grade_distribution).map(([key, _value], index) => (
@@ -664,7 +664,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                         return (
                           <Chip
                             key={`${student.id}-${course.course}-${course.section}`}
-                            label={`${course.course} (${course.grade}) - ${course.credit_hours} cr`}
+                            label={`${course.course} (${course.grade}) - ${course.credit_hours} cr.`}
                             size="small"
                             sx={{
                               m: 0.3,
