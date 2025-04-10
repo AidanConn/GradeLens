@@ -12,6 +12,7 @@ import csv
 from io import StringIO
 import re
 
+# Initialize FastAPI app
 app = FastAPI(title="GradeLens API")
 
 # Configure CORS
@@ -29,6 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# openpyxl for Excel export
 try:
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill
@@ -447,12 +449,12 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     
     session_files_dir = UPLOAD_DIR / session_id / "files"
     
-    # Define more granular grade points for plus/minus grades
+    # RWU GPA scale values
     grade_values = {
-        "A": 4.0, "A-": 3.7,
-        "B+": 3.3, "B": 3.0, "B-": 2.7,
-        "C+": 2.3, "C": 2.0, "C-": 1.7,
-        "D+": 1.3, "D": 1.0, "D-": 0.7,
+        "A": 4.0, "A-": 3.67,
+        "B+": 3.33, "B": 3.0, "B-": 2.67,
+        "C+": 2.33, "C": 2.0, "C-": 1.67,
+        "D+": 1.33, "D": 1.0, "D-": 0.67,
         "F": 0.0
     }
     
