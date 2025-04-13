@@ -56,7 +56,13 @@ interface Section {
 
 interface RunCalculationDetails {
   run_name: string;
-  courses: Course[];
+  courses?: Course[] | Record<string, Course>;  // Updated to support both array and object
+  course_list?: Course[];  // Added support for the new course_list field
+  groups?: Array<{
+    group_name: string;
+    courses: string[];
+    sections: string[];
+  }>;
   summary?: {
     total_students: number;
     grade_distribution: GradeDistribution;
@@ -113,6 +119,10 @@ export function DataVisualization({ data }: DataVisualizationProps) {
   const [selectedCourse, setSelectedCourse] = useState('all');
   const [selectedChartType, setSelectedChartType] = useState('basic');
   const [chartView, setChartView] = useState<'bar' | 'pie'>('bar');
+  
+  // Get courses from either course_list (new format) or courses (old format)
+  const coursesList = data.course_list || 
+    (Array.isArray(data.courses) ? data.courses : Object.values(data.courses || {})) || [];
 
   // Helper function to convert grade distribution to chart data
   const getGradeDistributionData = (distribution: Record<string, number>) => {
@@ -125,7 +135,7 @@ export function DataVisualization({ data }: DataVisualizationProps) {
   // Get all courses + overall summary option
   const courseOptions = [
     { value: 'all', label: 'Overall Summary' },
-    ...data.courses.map(course => ({
+    ...coursesList.map(course => ({
       value: course.course_name,
       label: course.course_name
     }))
@@ -165,7 +175,7 @@ export function DataVisualization({ data }: DataVisualizationProps) {
           )
         : [];
     } else {
-      const course = data.courses.find(c => c.course_name === selectedCourse);
+      const course = coursesList.find(c => c.course_name === selectedCourse);
       return course
         ? getGradeDistributionData(
             selectedChartType === 'basic' 
@@ -286,7 +296,7 @@ export function DataVisualization({ data }: DataVisualizationProps) {
           <Typography variant="h6" gutterBottom>
             Section Comparison
           </Typography>
-          {data.courses
+          {coursesList
             .find(course => course.course_name === selectedCourse)
             ?.sections.map(section => (
               <Box key={section.section_name} mb={4}>

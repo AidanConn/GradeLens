@@ -138,22 +138,22 @@ def parse_grp_file(lines: List[str]) -> dict:
     """
     Parses a .grp file.
     Expected format (plain text):
-      - First non-empty line: course code (e.g., COMSC100)
-      - Subsequent non-empty lines: section file names (e.g., COMSC110.01F22.sec, etc.)
-    Returns a dictionary with the course and sections.
+      - First non-empty line: group name (e.g., COMSC400)
+      - Subsequent non-empty lines: section file names (e.g., COMSC401.01F22.sec, etc.)
+    Returns a dictionary with the group name and section filenames.
     """
     clean_lines = [line.strip() for line in lines if line.strip()]
     if not clean_lines:
         raise ValueError("Empty file")
     
-    course = clean_lines[0]
+    group_name = clean_lines[0]
 
-    # Remove the .sec from the secton names
+    # Remove the .sec from the section names
+    sections = []
     for i in range(1, len(clean_lines)):
-        clean_lines[i] = clean_lines[i].replace(".sec", "")
+        sections.append(clean_lines[i].replace(".sec", ""))
 
-    sections = clean_lines[1:]  # all remaining lines are section file names
-    return {"course": course, "sections": sections}
+    return {"group_name": group_name, "sections": sections}
 
 @router.post("/upload_sec_grp/")
 async def upload_sec_grp_files(
@@ -436,7 +436,8 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     # Initialize results
     results = {
         "run_name": associated_files.get("run_name", "Unnamed Run"),
-        "courses": [],
+        "groups": [],
+        "courses": {},  # Will store data grouped by actual course codes
         "class_types": {},
         "students": {},
         "improvement_lists": {
@@ -485,13 +486,21 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                 return "400-level"
         return "other"
     
+    # Helper function to extract course code from section name
+    def extract_course_code(section_name):
+        # Match patterns like COMSC401 from COMSC401.01F18
+        match = re.match(r'^([A-Z]+\d{3})', section_name)
+        if match:
+            return match.group(1)
+        return section_name
+    
     # Process each GRP file
     for grp_file in grp_files:
         grp_path = session_files_dir / grp_file
         grp_json_path = grp_path.with_suffix(".json")
         
         if not grp_json_path.exists():
-            results["courses"].append({
+            results["groups"].append({
                 "group_file": grp_file,
                 "error": f"Could not find processed JSON for {grp_file}"
             })
@@ -501,196 +510,215 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
         with open(grp_json_path, "r", encoding="utf-8") as f:
             grp_data = json.load(f)
             
-        course_name = grp_data.get("course", "Unknown Course")
+        group_name = grp_data.get("group_name", "Unknown Group")
         sections = grp_data.get("sections", [])
-        course_type = get_course_type(course_name)
         
-        # Initialize class type metrics if not already present
-        if course_type not in results["class_types"]:
-            results["class_types"][course_type] = {
-                "total_students": 0,
-                "grade_distribution": {category: 0 for category in grade_categories},
-                "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
-                "average_gpa": 0.0,
-                "courses": []
-            }
-        
-        course_results = {
-            "course_name": course_name,
-            "course_type": course_type,
-            "total_students": 0,
-            "sections": [],
-            "grade_distribution": {category: 0 for category in grade_categories},
-            "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
-            "average_gpa": 0.0,
-            "student_performance": []  # Will store individual student data for this course
+        group_results = {
+            "group_name": group_name,
+            "sections": sections,
+            "courses": []
         }
         
-        # Track course-level metrics
-        total_grade_points = 0.0
-        total_credit_hours = 0.0
-        total_graded_students = 0
-        
-        # Track class-type metrics
-        class_type_grade_points = 0.0
-        class_type_credit_hours = 0.0
-        class_type_graded_students = 0
-        
-        # Process each section in the GRP file
+        # Group sections by actual course code
+        sections_by_course = {}
         for section in sections:
-            section_file = f"{section}.json"
-            section_path = session_files_dir / section_file
+            course_code = extract_course_code(section)
+            if course_code not in sections_by_course:
+                sections_by_course[course_code] = []
+            sections_by_course[course_code].append(section)
             
-            if not section_path.exists():
-                course_results["sections"].append({
-                    "section_name": section,
-                    "error": f"Could not find processed JSON for section {section}"
-                })
-                continue
-                
-            # Load the section data
-            with open(section_path, "r", encoding="utf-8") as f:
-                section_data = json.load(f)
-                
-            students = section_data.get("students", [])
-            section_info = section_data.get("course", {})
-            
-            # Get credit hours for this section
-            credit_hours = section_info.get("credit_hours", 3.0)  # Default to 3.0 if not specified
-            if credit_hours is None:
-                credit_hours = 3.0  # Default if explicitly None
-                
-            section_results = {
-                "section_name": section,
-                "credit_hours": credit_hours,
-                "student_count": len(students),
-                "grade_distribution": {category: 0 for category in grade_categories},
-                "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
-                "average_gpa": 0.0,
-                "students": []  # Track individual student performance in this section
-            }
-            
-            section_total_points = 0.0
-            section_graded_students = 0
-            
-            # Process student grades
-            for student in students:
-                student_name = student.get("name", "Unknown")
-                student_id = student.get("student_id", "000000")
-                grade = student.get("grade", "").upper()
-                
-                # Create student record for this section
-                student_record = {
-                    "name": student_name,
-                    "id": student_id,
-                    "grade": grade,
-                    "grade_point": grade_values.get(grade, None),
-                    "section": section,
-                    "course": course_name,
+            # Initialize course in results if not already present
+            if course_code not in results["courses"]:
+                course_type = get_course_type(course_code)
+                results["courses"][course_code] = {
+                    "course_name": course_code,
                     "course_type": course_type,
-                    "credit_hours": credit_hours
+                    "total_students": 0,
+                    "sections": [],
+                    "grade_distribution": {category: 0 for category in grade_categories},
+                    "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
+                    "average_gpa": 0.0,
+                    "student_performance": []
                 }
                 
-                # Add to section students list
-                section_results["students"].append(student_record)
+                # Initialize class type metrics if not already present
+                if course_type not in results["class_types"]:
+                    results["class_types"][course_type] = {
+                        "total_students": 0,
+                        "grade_distribution": {category: 0 for category in grade_categories},
+                        "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
+                        "average_gpa": 0.0,
+                        "courses": []
+                    }
+                if course_code not in results["class_types"][course_type]["courses"]:
+                    results["class_types"][course_type]["courses"].append(course_code)
+        
+        group_results["courses"] = list(sections_by_course.keys())
+        results["groups"].append(group_results)
+        
+        # Process each section and add to appropriate course
+        for course_code, course_sections in sections_by_course.items():
+            course_type = get_course_type(course_code)
+            course_data = results["courses"][course_code]
+            
+            # Track course-level metrics
+            total_grade_points = 0.0
+            total_credit_hours = 0.0
+            total_graded_students = 0
+            
+            for section in course_sections:
+                section_file = f"{section}.json"
+                section_path = session_files_dir / section_file
                 
-                # Add to course student performance list
-                course_results["student_performance"].append(student_record)
+                if not section_path.exists():
+                    course_data["sections"].append({
+                        "section_name": section,
+                        "error": f"Could not find processed JSON for section {section}"
+                    })
+                    continue
+                    
+                # Load the section data
+                with open(section_path, "r", encoding="utf-8") as f:
+                    section_data = json.load(f)
+                    
+                students = section_data.get("students", [])
+                section_info = section_data.get("course", {})
                 
-                # Update cross-student tracking
-                if student_id not in results["students"]:
-                    results["students"][student_id] = {
+                # Get credit hours for this section
+                credit_hours = section_info.get("credit_hours", 3.0)  # Default to 3.0 if not specified
+                if credit_hours is None:
+                    credit_hours = 3.0  # Default if explicitly None
+                    
+                section_results = {
+                    "section_name": section,
+                    "credit_hours": credit_hours,
+                    "student_count": len(students),
+                    "grade_distribution": {category: 0 for category in grade_categories},
+                    "detailed_grade_distribution": {grade: 0 for grade in grade_values.keys()},
+                    "average_gpa": 0.0,
+                    "students": []  # Track individual student performance in this section
+                }
+                
+                section_total_points = 0.0
+                section_graded_students = 0
+                
+                # Process student grades
+                for student in students:
+                    student_name = student.get("name", "Unknown")
+                    student_id = student.get("student_id", "000000")
+                    grade = student.get("grade", "").upper()
+                    
+                    # Create student record for this section
+                    student_record = {
                         "name": student_name,
                         "id": student_id,
-                        "courses": [],
-                        "total_grade_points": 0.0,
-                        "total_credit_hours": 0.0,
-                        "total_courses": 0,
-                        "gpa": 0.0
-                    }
-                
-                # Update grade distributions
-                if grade in grade_values:
-                    # Track in detailed distribution for section and course
-                    section_results["detailed_grade_distribution"][grade] += 1
-                    course_results["detailed_grade_distribution"][grade] += 1
-                    results["class_types"][course_type]["detailed_grade_distribution"][grade] += 1
-                    
-                    # Add to category totals (A, B, C, D, F)
-                    for category, grades in grade_categories.items():
-                        if grade in grades:
-                            section_results["grade_distribution"][category] += 1
-                            course_results["grade_distribution"][category] += 1
-                            results["class_types"][course_type]["grade_distribution"][category] += 1
-                            break
-                    
-                    # Calculate GPA with credit hours weighting
-                    grade_point = grade_values[grade]
-                    weighted_grade_point = grade_point * credit_hours
-                    
-                    section_total_points += weighted_grade_point
-                    section_graded_students += 1
-                    
-                    total_grade_points += weighted_grade_point
-                    total_credit_hours += credit_hours
-                    total_graded_students += 1
-                    
-                    class_type_grade_points += weighted_grade_point
-                    class_type_credit_hours += credit_hours
-                    class_type_graded_students += 1
-                    
-                    # Update student cross-course records
-                    results["students"][student_id]["courses"].append({
-                        "course": course_name,
-                        "section": section,
                         "grade": grade,
-                        "grade_point": grade_point,
-                        "credit_hours": credit_hours,
-                        "weighted_points": weighted_grade_point,
-                        "course_type": course_type
-                    })
-                    results["students"][student_id]["total_grade_points"] += weighted_grade_point
-                    results["students"][student_id]["total_credit_hours"] += credit_hours
-                    results["students"][student_id]["total_courses"] += 1
+                        "grade_point": grade_values.get(grade, None),
+                        "section": section,
+                        "course": course_code,
+                        "course_type": course_type,
+                        "credit_hours": credit_hours
+                    }
+                    
+                    # Add to section students list
+                    section_results["students"].append(student_record)
+                    
+                    # Add to course student performance list
+                    course_data["student_performance"].append(student_record)
+                    
+                    # Update cross-student tracking
+                    if student_id not in results["students"]:
+                        results["students"][student_id] = {
+                            "name": student_name,
+                            "id": student_id,
+                            "courses": [],
+                            "total_grade_points": 0.0,
+                            "total_credit_hours": 0.0,
+                            "total_courses": 0,
+                            "gpa": 0.0
+                        }
+                    
+                    # Update grade distributions
+                    if grade in grade_values:
+                        # Track in detailed distribution for section and course
+                        section_results["detailed_grade_distribution"][grade] += 1
+                        course_data["detailed_grade_distribution"][grade] += 1
+                        results["class_types"][course_type]["detailed_grade_distribution"][grade] += 1
+                        
+                        # Add to category totals (A, B, C, D, F)
+                        for category, grades in grade_categories.items():
+                            if grade in grades:
+                                section_results["grade_distribution"][category] += 1
+                                course_data["grade_distribution"][category] += 1
+                                results["class_types"][course_type]["grade_distribution"][category] += 1
+                                break
+                        
+                        # Calculate GPA with credit hours weighting
+                        grade_point = grade_values[grade]
+                        weighted_grade_point = grade_point * credit_hours
+                        
+                        section_total_points += weighted_grade_point
+                        section_graded_students += 1
+                        
+                        total_grade_points += weighted_grade_point
+                        total_credit_hours += credit_hours
+                        total_graded_students += 1
+                        
+                        # Update student cross-course records
+                        results["students"][student_id]["courses"].append({
+                            "course": course_code,
+                            "section": section,
+                            "grade": grade,
+                            "grade_point": grade_point,
+                            "credit_hours": credit_hours,
+                            "weighted_points": weighted_grade_point,
+                            "course_type": course_type
+                        })
+                        results["students"][student_id]["total_grade_points"] += weighted_grade_point
+                        results["students"][student_id]["total_credit_hours"] += credit_hours
+                        results["students"][student_id]["total_courses"] += 1
+                    
+                    elif grade == "W":
+                        section_results["grade_distribution"]["W"] += 1
+                        course_data["grade_distribution"]["W"] += 1
+                        results["class_types"][course_type]["grade_distribution"]["W"] += 1
+                    
+                    else:
+                        # Handle any other grade (NP, I, etc.)
+                        section_results["grade_distribution"]["Other"] += 1
+                        course_data["grade_distribution"]["Other"] += 1
+                        results["class_types"][course_type]["grade_distribution"]["Other"] += 1
                 
-                elif grade == "W":
-                    section_results["grade_distribution"]["W"] += 1
-                    course_results["grade_distribution"]["W"] += 1
-                    results["class_types"][course_type]["grade_distribution"]["W"] += 1
-                
+                # Calculate section GPA - use credit hours if available
+                if section_graded_students > 0 and credit_hours > 0:
+                    section_results["average_gpa"] = round(section_total_points / (section_graded_students * credit_hours), 2)
                 else:
-                    # Handle any other grade (NP, I, etc.)
-                    section_results["grade_distribution"]["Other"] += 1
-                    course_results["grade_distribution"]["Other"] += 1
-                    results["class_types"][course_type]["grade_distribution"]["Other"] += 1
+                    section_results["average_gpa"] = 0.0
+                
+                course_data["total_students"] += section_results["student_count"]
+                results["class_types"][course_type]["total_students"] += section_results["student_count"]
+                course_data["sections"].append(section_results)
             
-            # Calculate section GPA - use credit hours if available
-            if section_graded_students > 0 and credit_hours > 0:
-                section_results["average_gpa"] = round(section_total_points / (section_graded_students * credit_hours), 2)
-            else:
-                section_results["average_gpa"] = 0.0
-            
-            course_results["total_students"] += section_results["student_count"]
-            results["class_types"][course_type]["total_students"] += section_results["student_count"]
-            course_results["sections"].append(section_results)
-        
-        # Calculate course GPA using credit hours weighting
-        if total_graded_students > 0 and total_credit_hours > 0:
-            course_results["average_gpa"] = round(total_grade_points / total_credit_hours, 2)
-            
-        results["courses"].append(course_results)
-        results["class_types"][course_type]["courses"].append(course_name)
+            # Calculate course GPA using credit hours weighting
+            if total_graded_students > 0 and total_credit_hours > 0:
+                course_data["average_gpa"] = round(total_grade_points / total_credit_hours, 2)
     
     # Calculate class type GPAs using credit hours weighting
-    for course_type, data in results["class_types"].items():
-        data["total_credit_hours"] = sum(
-            grade_values[grade] * count * 3.0  # Use default 3.0 credits if no better information
-            for grade, count in data["detailed_grade_distribution"].items() 
-            if grade in grade_values
-        )
+    for course_type, type_data in results["class_types"].items():
+        total_points = 0.0
+        total_credits = 0.0
         
-        if class_type_credit_hours > 0:
-            data["average_gpa"] = round(class_type_grade_points / class_type_credit_hours, 2)
+        # Recalculate from course data for accurate weighting
+        for course_code, course_data in results["courses"].items():
+            if course_data["course_type"] == course_type:
+                # Sum up all grade points and credit hours for this course type
+                for student_record in course_data["student_performance"]:
+                    if student_record.get("grade") in grade_values:
+                        total_points += student_record["grade_point"] * student_record["credit_hours"]
+                        total_credits += student_record["credit_hours"]
+        
+        if total_credits > 0:
+            type_data["average_gpa"] = round(total_points / total_credits, 2)
     
     # Calculate per-student GPA using credit hours weighting
     for student_id, student_data in results["students"].items():
@@ -725,12 +753,17 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     overall_grades = {category: 0 for category in grade_categories}
     detailed_grades = {grade: 0 for grade in grade_values.keys()}
     
-    for course in results["courses"]:
-        for grade, count in course["detailed_grade_distribution"].items():
+    # Convert courses dictionary to a list for the results
+    results["course_list"] = []
+    for course_code, course_data in results["courses"].items():
+        results["course_list"].append(course_data)
+        
+        # Accumulate grade distributions for summary
+        for grade, count in course_data["detailed_grade_distribution"].items():
             if grade in detailed_grades:
                 detailed_grades[grade] += count
         
-        for category, count in course["grade_distribution"].items():
+        for category, count in course_data["grade_distribution"].items():
             if category in overall_grades:
                 overall_grades[category] += count
     
@@ -944,7 +977,7 @@ async def export_run_to_excel(
             good_list[f'E{row}'] = ", ".join(grades)
         
         # Course sheets
-        for i, course in enumerate(calculations.get("courses", [])):
+        for i, course in calculations.get("courses", []):
             course_name = course.get("course_name", f"Course {i+1}")
             sheet_name = f"{course_name[:29]}"  # Excel sheet name length limit
             

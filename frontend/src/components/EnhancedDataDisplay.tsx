@@ -117,6 +117,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedSection, setSelectedSection] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -139,14 +140,22 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
 
   const COLORS = ['#4caf50', '#8bc34a', '#ffeb3b', '#ff9800', '#f44336', '#9e9e9e', '#607d8b'];
 
+  // Get courses from either course_list (new format) or courses (old format)
+  const coursesList = data.course_list || Object.values(data.courses || {}) || [];
+
   // Generate course options from data
-  const courseOptions = data.courses
-    ? ['all', ...data.courses.map((course: any) => course.course_name)]
+  const courseOptions = coursesList.length > 0
+    ? ['all', ...coursesList.map((course: any) => course.course_name)]
+    : ['all'];
+
+  // Generate group options if groups are available
+  const groupOptions = data.groups && data.groups.length > 0
+    ? ['all', ...data.groups.map((group: any) => group.group_name)]
     : ['all'];
 
   // Generate section options
-  const sectionOptions = data.courses
-    ? ['all', ...data.courses.flatMap((course: any) =>
+  const sectionOptions = coursesList.length > 0
+    ? ['all', ...coursesList.flatMap((course: any) =>
       course.sections.map((section: any) => section.section_name)
     )]
     : ['all'];
@@ -388,12 +397,33 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   };
 
   const renderCoursesView = () => {
-    if (!data.courses || data.courses.length === 0) {
+    if (!coursesList || coursesList.length === 0) {
       return <Alert severity="info">No course data available</Alert>;
     }
 
     return (
       <Box>
+        {/* Group filter if groups are available */}
+        {data.groups && data.groups.length > 0 && (
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="group-select-label">Filter by Group</InputLabel>
+            <Select
+              labelId="group-select-label"
+              id="group-select"
+              value={selectedGroup}
+              label="Filter by Group"
+              onChange={(e) => setSelectedGroup(e.target.value)}
+            >
+              <MenuItem value="all">All Groups</MenuItem>
+              {groupOptions.filter(option => option !== 'all').map((group) => (
+                <MenuItem key={group} value={group}>
+                  {group}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
         {data.class_types && (
           <Box mb={4}>
             <Typography variant="h6" gutterBottom>Course Types</Typography>
@@ -429,7 +459,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
         )}
 
         <Typography variant="h6" gutterBottom>Course Details</Typography>
-        {data.courses.map((course: any) => (
+        {coursesList.map((course: any) => (
           <Accordion key={course.course_name} defaultExpanded>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -489,7 +519,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   };
 
   const renderSectionsView = () => {
-    if (!data.courses || data.courses.length === 0) {
+    if (!coursesList || coursesList.length === 0) {
       return <Alert severity="info">No section data available</Alert>;
     }
 
@@ -505,7 +535,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
             onChange={(e) => setSelectedCourse(e.target.value)}
           >
             <MenuItem value="all">All Courses</MenuItem>
-            {data.courses.map((course: any) => (
+            {coursesList.map((course: any) => (
               <MenuItem key={course.course_name} value={course.course_name}>
                 {course.course_name}
               </MenuItem>
@@ -513,7 +543,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
           </Select>
         </FormControl>
 
-        {data.courses
+        {coursesList
           .filter((course: any) => selectedCourse === 'all' || course.course_name === selectedCourse)
           .map((course: any) => (
             <Box key={course.course_name} mb={4}>
