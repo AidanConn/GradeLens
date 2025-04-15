@@ -976,8 +976,15 @@ async def export_run_to_excel(
             grades = [f"{c.get('course')}: {c.get('grade')}" for c in student.get("courses", [])]
             good_list[f'E{row}'] = ", ".join(grades)
         
-        # Course sheets
-        for i, course in calculations.get("courses", []):
+        # Course sheets - FIXED THIS PART
+        # Use course_list which is a list, or convert courses dictionary to a list
+        course_list = calculations.get("course_list", [])
+        if not course_list and "courses" in calculations:
+            # If course_list is empty but courses exists as a dictionary, convert it
+            if isinstance(calculations["courses"], dict):
+                course_list = list(calculations["courses"].values())
+        
+        for i, course in enumerate(course_list):
             course_name = course.get("course_name", f"Course {i+1}")
             sheet_name = f"{course_name[:29]}"  # Excel sheet name length limit
             
