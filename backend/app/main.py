@@ -11,6 +11,7 @@ from filelock import FileLock
 import csv
 from io import StringIO
 import re
+import math
 
 # Initialize FastAPI app
 app = FastAPI(title="GradeLens API")
@@ -566,6 +567,8 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             total_credit_hours = 0.0
             total_graded_students = 0
             
+            section_gpas = []
+
             for section in course_sections:
                 section_file = f"{section}.json"
                 section_path = session_files_dir / section_file
@@ -695,6 +698,7 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                 else:
                     section_results["average_gpa"] = 0.0
                 
+                section_gpas.append(section_results["average_gpa"])
                 course_data["total_students"] += section_results["student_count"]
                 results["class_types"][course_type]["total_students"] += section_results["student_count"]
                 course_data["sections"].append(section_results)
@@ -702,7 +706,20 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             # Calculate course GPA using credit hours weighting
             if total_graded_students > 0 and total_credit_hours > 0:
                 course_data["average_gpa"] = round(total_grade_points / total_credit_hours, 2)
-    
+
+            # --- Z-SCORE CALCULATION FOR SECTIONS ---
+            # Compute mean and stddev for section GPAs
+            if section_gpas:
+                mean_gpa = sum(section_gpas) / len(section_gpas)
+                stddev_gpa = math.sqrt(sum((g - mean_gpa) ** 2 for g in section_gpas) / len(section_gpas)) if len(section_gpas) > 1 else 0.0
+                # Assign z-score to each section
+                for section in course_data["sections"]:
+                    if stddev_gpa > 0:
+                        section["z_score"] = round((section["average_gpa"] - mean_gpa) / stddev_gpa, 2)
+                    else:
+                        section["z_score"] = 0.0
+            # --- END Z-SCORE CALCULATION ---
+
     # Calculate class type GPAs using credit hours weighting
     for course_type, type_data in results["class_types"].items():
         total_points = 0.0

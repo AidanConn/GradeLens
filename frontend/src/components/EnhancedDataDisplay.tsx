@@ -570,7 +570,43 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                             Avg GPA: {section.average_gpa.toFixed(2)}
                           </Typography>
                         </Box>
-
+                        {/* Z-Score Visual */}
+                        <Box display="flex" alignItems="center" mb={1}>
+                          <Typography variant="body2" sx={{ mr: 1 }}>
+                            Z-Score:
+                          </Typography>
+                          <Chip
+                            label={
+                              section.z_score !== undefined
+                                ? section.z_score.toFixed(2)
+                                : 'N/A'
+                            }
+                            color={
+                              section.z_score > 0.5
+                                ? 'success'
+                                : section.z_score < -0.5
+                                ? 'error'
+                                : 'default'
+                            }
+                            sx={{
+                              fontWeight: 'bold',
+                              bgcolor:
+                                section.z_score > 0.5
+                                  ? '#4caf50'
+                                  : section.z_score < -0.5
+                                  ? '#f44336'
+                                  : '#bdbdbd',
+                              color: 'white',
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ ml: 1, color: '#888' }}>
+                            {section.z_score > 0.5
+                              ? 'Above Avg'
+                              : section.z_score < -0.5
+                              ? 'Below Avg'
+                              : 'Near Avg'}
+                          </Typography>
+                        </Box>
                         <ResponsiveContainer width="100%" height={200}>
                           <BarChart
                             data={Object.entries(section.grade_distribution).map(([key, value]) => ({
