@@ -39,6 +39,7 @@ import {
   Legend,
 } from 'recharts';
 
+// Define the props for the EnhancedDataDisplay component
 interface EnhancedDataDisplayProps {
   data: any;
   displayType: 'summary' | 'courses' | 'sections' | 'students';
@@ -59,6 +60,7 @@ const getGradeColor = (grade: string) => {
     'Other': '#607d8b',
   };
 
+  // Check for special cases first
   if (grade.startsWith('A')) return gradeColors['A'];
   if (grade.startsWith('B')) return gradeColors['B'];
   if (grade.startsWith('C')) return gradeColors['C'];
