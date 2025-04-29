@@ -236,6 +236,14 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
     const pieData = createPieData(grade_distribution);
     const detailedPieData = createPieData(detailed_grade_distribution);
 
+    // compute accurate pass rate from all grade entries
+    const totalGradeEntries = Object.values(grade_distribution)
+      .reduce((sum: number, v) => sum + (v as number), 0);
+    const passEntries =
+      (grade_distribution.A || 0) +
+      (grade_distribution.B || 0) +
+      (grade_distribution.C || 0);
+
     return (
       <Box>
         {/* Summary Cards */}
@@ -263,7 +271,10 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
               <CardContent>
                 <Typography variant="h6" gutterBottom>Pass Rate</Typography>
                 <Typography variant="h3" sx={{ textAlign: 'center' }}>
-                  {(((grade_distribution.A || 0) + (grade_distribution.B || 0) + (grade_distribution.C || 0)) / total_students * 100).toFixed(1)}%
+                  { totalGradeEntries > 0
+                    ? ((passEntries / totalGradeEntries * 100).toFixed(1))
+                    : '0.0'
+                  }%
                 </Typography>
               </CardContent>
             </Card>
