@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, List, ListItem, ListItemButton, ListItemText,
-  Alert, Collapse, Button, Tabs, Tab, TextField, InputAdornment
+  Alert, Collapse, Button, Tabs, Tab, TextField, InputAdornment,
+  TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Paper
 } from '@mui/material';
 import { EnhancedDataDisplay } from './DataDisplay';
 import SearchIcon from '@mui/icons-material/Search';
@@ -28,6 +29,9 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
   const [exporting, setExporting] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [comparisonData, setComparisonData] = useState<any>(null);
+  const [compLoading, setCompLoading] = useState(false);
+  const [compError, setCompError] = useState<string | null>(null);
 
   const fetchRuns = async () => {
     if (!sessionId) return;
@@ -50,6 +54,23 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
     }
   };
 
+  const fetchComparison = async () => {
+    if (!sessionId) return;
+    try {
+      setCompLoading(true);
+      const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/runs/comparison`, {
+        credentials: 'include',
+        headers: { 'X-Session-ID': sessionId }
+      });
+      if (!resp.ok) throw new Error(`Error ${resp.status}`);
+      setComparisonData(await resp.json());
+    } catch (e) {
+      setCompError(e instanceof Error ? e.message : 'Error fetching comparison');
+    } finally {
+      setCompLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRuns();
 
@@ -59,14 +80,18 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
         fetchRuns();
       }
     };
-    
+
     window.addEventListener('refresh-runs', handleRefreshEvent);
-    
+
     // Cleanup function
     return () => {
       window.removeEventListener('refresh-runs', handleRefreshEvent);
     };
   }, [sessionId]); // Make sure to include sessionId in the dependency array
+
+  useEffect(() => {
+    if (sessionId) fetchComparison();
+  }, [sessionId]);
 
   const handleSelect = async (runId: string) => {
     if (!sessionId) return;
@@ -261,7 +286,7 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
                   <Tab label="Course Details" />
                   <Tab label="Sections" />
                   <Tab label="Students" />
-                  {/*<Tab label="Raw JSON" />*/}
+                  <Tab label="Comparison" />
                 </Tabs>
 
                 {activeTab === 0 && (
@@ -319,12 +344,58 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
 
                 {activeTab === 4 && (
                   <Box>
-                    <Typography variant="subtitle2">Raw Calculation Results:</Typography>
-                    <pre style={{ overflowX: 'auto', padding: '8px', backgroundColor: '#f5f5f5', fontSize: '0.8rem' }}>
-                      {JSON.stringify(calcDetails, null, 2)}
-                    </pre>
+                    {compLoading && <Typography>Loading comparison...</Typography>}
+                    {compError && <Alert severity="error">{compError}</Alert>}
+                    {comparisonData && (
+                      <>
+                        <Typography variant="subtitle1">Work List Comparison</Typography>
+                        <TableContainer component={Paper}>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Count</TableCell>
+                                <TableCell>Runs</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {Object.entries(comparisonData.work_list_comparison).map(([name, info]: any) => (
+                                <TableRow key={name}>
+                                  <TableCell>{name}</TableCell>
+                                  <TableCell>{info.count}</TableCell>
+                                  <TableCell>{info.runs.join(', ')}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+
+                        <Typography variant="subtitle1" sx={{ mt: 2 }}>Good List Comparison</Typography>
+                        <TableContainer component={Paper}>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Count</TableCell>
+                                <TableCell>Runs</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {Object.entries(comparisonData.good_list_comparison).map(([name, info]: any) => (
+                                <TableRow key={name}>
+                                  <TableCell>{name}</TableCell>
+                                  <TableCell>{info.count}</TableCell>
+                                  <TableCell>{info.runs.join(', ')}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </>
+                    )}
                   </Box>
                 )}
+
 
               </Box>
             ) : (

@@ -384,6 +384,32 @@ async def get_run_status(
         "run_info": associated_files
     }
 
+@router.get("/runs/comparison")
+async def compare_runs(session_id: str = Depends(get_session_id)):
+    session_runs_dir = UPLOAD_DIR / session_id / "runs"
+    work_map, good_map = {}, {}
+    if session_runs_dir.exists():
+        for run_dir in session_runs_dir.iterdir():
+            if not run_dir.is_dir(): continue
+            run_id = run_dir.name
+            calc_file = run_dir / "calculations.json"
+            if not calc_file.exists(): continue
+            with open(calc_file, "r", encoding="utf-8") as f:
+                calc = json.load(f)
+            for s in calc.get("improvement_lists", {}).get("work_list", []):
+                name = s.get("name")
+                if name:
+                    e = work_map.setdefault(name, {"count":0,"runs":[]})
+                    e["count"] += 1
+                    e["runs"].append(run_id)
+            for s in calc.get("improvement_lists", {}).get("good_list", []):
+                name = s.get("name")
+                if name:
+                    e = good_map.setdefault(name, {"count":0,"runs":[]})
+                    e["count"] += 1
+                    e["runs"].append(run_id)
+    return {"work_list_comparison": work_map, "good_list_comparison": good_map}
+
 # Helper functions for parsing and processing files
 def parse_run_file_for_associated_files(run_file_path: Path) -> dict:
     """
