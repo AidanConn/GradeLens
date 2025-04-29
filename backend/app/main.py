@@ -744,6 +744,41 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                         section["z_score"] = 0.0
             # --- END Z-SCORE CALCULATION ---
 
+    # --- GROUP Z‑SCORE CALCULATION FOR GROUPS ---
+    # Compute each group's aggregate GPA (weighted by total students)
+    group_gpas = []
+    for grp in results["groups"]:
+        pts = 0.0
+        studs = 0
+        for code in grp["courses"]:
+            c = results["courses"].get(code)
+            if c:
+                pts += c["average_gpa"] * c["total_students"]
+                studs += c["total_students"]
+        grp_gpa = round(pts / studs, 2) if studs > 0 else 0.0
+        grp["average_gpa"] = grp_gpa
+        group_gpas.append(grp_gpa)
+
+    # Calculate overall mean and std‑dev of group GPAs
+    if group_gpas:
+        mean_gpa = sum(group_gpas) / len(group_gpas)
+        std_dev = math.sqrt(
+            sum((g - mean_gpa) ** 2 for g in group_gpas) / len(group_gpas)
+        ) if len(group_gpas) > 1 else 0.0
+    else:
+        mean_gpa = std_dev = 0.0
+
+    # Assign Z‑score to each group
+    for grp, g in zip(results["groups"], group_gpas):
+        grp["z_score"] = round((g - mean_gpa) / std_dev, 2) if std_dev > 0 else 0.0
+
+    # Store group comparison summary
+    results["group_comparison"] = {
+        "mean": round(mean_gpa, 2),
+        "std_dev": round(std_dev, 2)
+    }
+    # --- END GROUP Z‑SCORE CALCULATION ---
+
     # Calculate class type GPAs using credit hours weighting
     for course_type, type_data in results["class_types"].items():
         total_points = 0.0
