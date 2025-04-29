@@ -100,7 +100,7 @@ export default function App() {
       </AppBar>
 
       <Container
-        maxWidth="md" // Changed from "sm" to "md" for a wider layout
+        maxWidth="lg"
         disableGutters
         sx={{
           mt: 4,
@@ -112,28 +112,29 @@ export default function App() {
           justifyContent: 'flex-start',
         }}
       >
-        {tab === 0 && (
-          <Paper
-            sx={{
-              p: 3,
-              width: '100%',
-              maxWidth: 900, // Increased maxWidth for the Paper
-              mx: 'auto',
-              boxSizing: 'border-box',
-              overflow: 'visible',
-            }}
-          >
+        <Paper
+          sx={{
+            p: 3,
+            width: '100%',
+            maxWidth: 1200, // Set a consistent, wide maxWidth for all tabs
+            mx: 'auto',
+            boxSizing: 'border-box',
+            overflow: 'visible',
+            minHeight: 500, // Optional: helps keep height consistent
+          }}
+        >
+          {tab === 0 && (
             <FileUpload
               sessionId={sessionId}
               onGoToRuns={() => setTab(1)}
             />
-          </Paper>
-        )}
-        {tab === 1 && (
-          <Paper sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+          )}
+          {tab === 1 && (
             <RunFilesList sessionId={sessionId} />
-          </Paper>
-        )}
+          )}
+          {tab === 2 && null /* Reset Session handled by dialog */}
+          {/* Add your Course Details, Sections, Students components here if they are separate */}
+        </Paper>
       </Container>
       {/* Footer */}
       <Box component="footer" sx={{
