@@ -2,11 +2,33 @@ import { useState, useEffect, FC, SyntheticEvent } from 'react';
 import {
   Box, Typography, List, ListItem, ListItemButton, ListItemText,
   Alert, Collapse, Button, Tabs, Tab, TextField, InputAdornment,
-  TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Paper
+  TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Paper, Chip
 } from '@mui/material';
 import { EnhancedDataDisplay } from './DataDisplay';
 import SearchIcon from '@mui/icons-material/Search';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+
+// simple palette for runs
+const runColors = [
+  '#388e3c', // dark green
+  '#1976d2', // blue
+  '#d32f2f', // dark red
+  '#7b1fa2', // purple
+  '#fbc02d', // dark yellow
+  '#f57c00', // deep orange
+  '#455a64', // blue grey
+  '#c62828', // red
+  '#00695c', // teal
+  '#512da8', // deep purple
+  '#0288d1', // light blue (but not too light)
+  '#2e7d32', // green
+  '#ad1457', // pink
+  '#1565c0', // darker blue
+  '#ff5722', // orange
+  '#607d8b', // blue grey
+  '#0097a7', // cyan
+  '#c2185b', // pink
+];
 
 interface Run {
   run_id: string;
@@ -217,14 +239,25 @@ export const RunFilesList: FC<RunFilesListProps> = ({ sessionId }) => {
         <Typography>No runs found.</Typography>
       ) : (
         <List>
-          {runs.map((run) => (
+          {runs.map((run, index) => (
             <ListItem key={run.run_id}>
-              <ListItemButton onClick={() => handleSelect(run.run_id)}>
-                <ListItemText
-                  primary={`${run.run_name || 'Unnamed Run'} (${run.run_id})`}
-                  secondary={`Created: ${new Date(run.created_at).toLocaleString()} | Files: ${run.associated_files?.join(', ') || 'None'}`}
+              <Box display="flex" alignItems="center" mb={1}>
+                <Chip
+                  label={`Run ${run.run_id}`}
+                  size="small"
+                  sx={{
+                    bgcolor: runColors[index % runColors.length],
+                    color: 'white',
+                    mr: 1
+                  }}
                 />
-              </ListItemButton>
+                <ListItemButton onClick={() => handleSelect(run.run_id)}>
+                  <ListItemText
+                    primary={`${run.run_name || 'Unnamed Run'} (${run.run_id})`}
+                    secondary={`Created: ${new Date(run.created_at).toLocaleString()} | Files: ${run.associated_files?.join(', ') || 'None'}`}
+                  />
+                </ListItemButton>
+              </Box>
             </ListItem>
           ))}
         </List>
@@ -363,7 +396,25 @@ export const RunFilesList: FC<RunFilesListProps> = ({ sessionId }) => {
                                 <TableRow key={name}>
                                   <TableCell>{name}</TableCell>
                                   <TableCell>{info.count}</TableCell>
-                                  <TableCell>{info.runs.join(', ')}</TableCell>
+                                  <TableCell>
+                                    {info.runs.map((runId: string) => {
+                                      const runIndex = runs.findIndex(r => r.run_id === runId);
+                                      const color = runColors[runIndex >= 0 ? runIndex % runColors.length : 0];
+                                      return (
+                                        <Chip
+                                          key={runId}
+                                          label={runId}
+                                          size="small"
+                                          sx={{
+                                            bgcolor: color,
+                                            color: 'white',
+                                            mr: 0.5,
+                                            mb: 0.5
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -385,7 +436,25 @@ export const RunFilesList: FC<RunFilesListProps> = ({ sessionId }) => {
                                 <TableRow key={name}>
                                   <TableCell>{name}</TableCell>
                                   <TableCell>{info.count}</TableCell>
-                                  <TableCell>{info.runs.join(', ')}</TableCell>
+                                  <TableCell>
+                                    {info.runs.map((runId: string) => {
+                                      const runIndex = runs.findIndex(r => r.run_id === runId);
+                                      const color = runColors[runIndex >= 0 ? runIndex % runColors.length : 0];
+                                      return (
+                                        <Chip
+                                          key={runId}
+                                          label={runId}
+                                          size="small"
+                                          sx={{
+                                            bgcolor: color,
+                                            color: 'white',
+                                            mr: 0.5,
+                                            mb: 0.5
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
