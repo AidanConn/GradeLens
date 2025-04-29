@@ -779,6 +779,34 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     }
     # --- END GROUP Z‑SCORE CALCULATION ---
 
+    # --- COURSE G-SCORE CALCULATION WITHIN EACH LEVEL ---
+    for course_type, type_data in results["class_types"].items():
+        # Gather all courses of this type
+        course_codes = type_data.get("courses", [])
+        course_gpas = []
+        for code in course_codes:
+            course = results["courses"].get(code)
+            if course:
+                course_gpas.append(course["average_gpa"])
+        # Calculate mean and stddev
+        if course_gpas:
+            mean_gpa = sum(course_gpas) / len(course_gpas)
+            stddev_gpa = math.sqrt(sum((g - mean_gpa) ** 2 for g in course_gpas) / len(course_gpas)) if len(course_gpas) > 1 else 0.0
+        else:
+            mean_gpa = stddev_gpa = 0.0
+        # Assign G-score to each course in this level
+        for code in course_codes:
+            course = results["courses"].get(code)
+            if course:
+                if stddev_gpa > 0:
+                    course["g_score"] = round((course["average_gpa"] - mean_gpa) / stddev_gpa, 2)
+                else:
+                    course["g_score"] = 0.0
+        # Optionally, store mean/stddev for reference
+        type_data["g_score_mean"] = round(mean_gpa, 2)
+        type_data["g_score_stddev"] = round(stddev_gpa, 2)
+    # --- END COURSE G-SCORE CALCULATION ---
+
     # Calculate class type GPAs using credit hours weighting
     for course_type, type_data in results["class_types"].items():
         total_points = 0.0

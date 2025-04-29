@@ -556,9 +556,26 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                 <Typography variant="subtitle1" fontWeight="bold">
                   {course.course_name} ({course.course_type}) - {course.sections[0]?.credit_hours || 0} Credits
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                   <Typography variant="body2">Students: {course.total_students}</Typography>
                   <Typography variant="body2">Avg GPA: {course.average_gpa.toFixed(2)}</Typography>
+                  {/* G-score Chip */}
+                  {course.g_score !== undefined && (
+                    <Chip
+                      label={`G-score: ${course.g_score.toFixed(2)}`}
+                      sx={{
+                        bgcolor:
+                          course.g_score > 0.5
+                            ? '#4caf50'
+                            : course.g_score < -0.5
+                            ? '#f44336'
+                            : '#bdbdbd',
+                        color: 'white',
+                        fontWeight: 'bold',
+                      }}
+                      size="small"
+                    />
+                  )}
                 </Box>
               </Box>
             </AccordionSummary>
