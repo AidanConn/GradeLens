@@ -496,7 +496,7 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                           )}
                         </Box>
                       )}
-                      <ResponsiveContainer width="100%" height={200}>
+                      <ResponsiveContainer width="100%" minWidth={0} height={160}>
                         <BarChart data={Object.entries(typeData.grade_distribution).map(([key, value]) => ({ grade: key, count: value }))}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="grade" />
@@ -569,75 +569,80 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
         </Box>
 
         <Typography variant="h6" gutterBottom>Course Details</Typography>
-        {filteredCourses.map((course: any) => (
-          <Accordion key={course.course_name} defaultExpanded>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="subtitle1" fontWeight="bold">
-                  {course.course_name} ({course.course_type}) - {course.sections[0]?.credit_hours || 0} Credits
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <Typography variant="body2">Students: {course.total_students}</Typography>
-                  <Typography variant="body2">Avg GPA: {course.average_gpa.toFixed(2)}</Typography>
-                  {/* G-score Chip */}
-                  {course.g_score !== undefined && (
-                    <Chip
-                      label={`G-score: ${course.g_score.toFixed(2)}`}
-                      sx={{
-                        bgcolor:
-                          course.g_score > 0.5
-                            ? '#4caf50'
-                            : course.g_score < -0.5
-                            ? '#f44336'
-                            : '#bdbdbd',
-                        color: 'white',
-                        fontWeight: 'bold',
-                      }}
-                      size="small"
-                      icon={
-                        <Tooltip title="Course G-score: Compares this course's GPA to other courses at the same level.">
-                          <InfoOutlinedIcon fontSize="small" />
-                        </Tooltip>
-                      }
-                    />
-                  )}
-                </Box>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    {chartDetail === 'basic' ? 'Grade Distribution' : 'Detailed Grade Distribution'}
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart
-                      data={
-                        chartDetail === 'basic'
-                          ? Object.entries(course.grade_distribution).map(([key, value]) => ({ grade: key, count: value }))
-                          : Object.entries(course.detailed_grade_distribution).map(([key, value]) => ({ grade: key, count: value }))
-                      }
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="grade" />
-                      <YAxis />
-                      <RechartsTooltip formatter={(value: any, name: any) => [`${value} students`, `Grade: ${name}`]} />
-                      <Bar dataKey="count" fill="#8884d8">
-                        {(
-                          chartDetail === 'basic'
-                            ? Object.entries(course.grade_distribution)
-                            : Object.entries(course.detailed_grade_distribution)
-                        ).map(([key], index) => (
-                          <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-        ))}
+        <Grid container spacing={2}>
+          {filteredCourses.map((course: any) => (
+            <Grid item xs={12} md={6} key={course.course_name}>
+              <Accordion defaultExpanded>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {course.course_name} ({course.course_type}) - {course.sections[0]?.credit_hours || 0} Credits
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                      <Typography variant="body2">Students: {course.total_students}</Typography>
+                      <Typography variant="body2">Avg GPA: {course.average_gpa.toFixed(2)}</Typography>
+                      {/* G-score Chip */}
+                      {course.g_score !== undefined && (
+                        <Chip
+                          label={`G-score: ${course.g_score.toFixed(2)}`}
+                          sx={{
+                            bgcolor:
+                              course.g_score > 0.5
+                                ? '#4caf50'
+                                : course.g_score < -0.5
+                                ? '#f44336'
+                                : '#bdbdbd',
+                            color: 'white',
+                            fontWeight: 'bold',
+                          }}
+                          size="small"
+                          icon={
+                            <Tooltip title="Course G-score: Compares this course's GPA to other courses at the same level.">
+                              <InfoOutlinedIcon fontSize="small" />
+                            </Tooltip>
+                          }
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        {chartDetail === 'basic' ? 'Grade Distribution' : 'Detailed Grade Distribution'}
+                      </Typography>
+                      <ResponsiveContainer width="99%" minWidth={0} height={240}>
+                        <BarChart
+                          data={
+                            chartDetail === 'basic'
+                              ? Object.entries(course.grade_distribution).map(([key, value]) => ({ grade: key, count: value }))
+                              : Object.entries(course.detailed_grade_distribution).map(([key, value]) => ({ grade: key, count: value }))
+                          }
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="grade" />
+                          <YAxis />
+                          <RechartsTooltip formatter={(value: any, name: any) => [`${value} students`, `Grade: ${name}`]} />
+                          <Bar dataKey="count" fill="#8884d8">
+                            {(
+                              chartDetail === 'basic'
+                                ? Object.entries(course.grade_distribution)
+                                : Object.entries(course.detailed_grade_distribution)
+                            ).map(([key], index) => (
+                              <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Grid>
+                    {/* Add more Grid items here if you want more details/charts side by side */}
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
+            </Grid>
+          ))}
+        </Grid>
       </Box>
     );
   };
