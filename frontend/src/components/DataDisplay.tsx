@@ -462,35 +462,6 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
 
     return (
       <Box>
-        {/* Group Comparison (Z‑scores) */}
-        {data.group_comparison && data.groups.length > 0 && (
-          <Box mb={2}>
-            <Typography variant="subtitle1">
-              Group Comparison (Z‑scores)
-              <Tooltip title="This Z-score compares each group's average GPA to all other groups.">
-                <InfoOutlinedIcon fontSize="small" sx={{ ml: 1, verticalAlign: 'middle' }} />
-              </Tooltip>
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-              {data.groups.map((g: any) => (
-                <Chip
-                  key={g.group_name}
-                  label={`${g.group_name}: ${g.z_score.toFixed(2)}`}
-                  sx={getChipStyles(g.z_score)}
-                  icon={
-                    <Tooltip title="Group Z-score: Compares this group's GPA to all groups.">
-                      <InfoOutlinedIcon fontSize="small" />
-                    </Tooltip>
-                  }
-                />
-              ))}
-              <Typography variant="caption" sx={{ ml: 2 }}>
-                Mean: {data.group_comparison.mean}, Std Dev: {data.group_comparison.std_dev}
-              </Typography>
-            </Box>
-          </Box>
-        )}
-
         {data.class_types && (
           <Box mb={4}>
             <Typography variant="h6" gutterBottom>Course Types</Typography>
@@ -504,6 +475,27 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                         <Typography variant="body2">Students: {typeData.total_students}</Typography>
                         <Typography variant="body2">Avg GPA: {typeData.average_gpa.toFixed(2)}</Typography>
                       </Box>
+                      {/* Show only the group z-score for this level if available */}
+                      {data.groups && data.groups.length > 0 && (
+                        <Box mb={2}>
+                          {data.groups.map((g: any) =>
+                            g.courses.some((c: string) =>
+                              (typeData.courses || []).includes(c)
+                            ) ? (
+                              <Chip
+                                key={g.group_name}
+                                label={`${g.group_name} Z-score: ${g.z_score.toFixed(2)}`}
+                                sx={getChipStyles(g.z_score)}
+                                icon={
+                                  <Tooltip title="Group Z-score: Compares this group's GPA to all groups.">
+                                    <InfoOutlinedIcon fontSize="small" />
+                                  </Tooltip>
+                                }
+                              />
+                            ) : null
+                          )}
+                        </Box>
+                      )}
                       <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={Object.entries(typeData.grade_distribution).map(([key, value]) => ({ grade: key, count: value }))}>
                           <CartesianGrid strokeDasharray="3 3" />
