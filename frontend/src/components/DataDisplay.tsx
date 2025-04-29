@@ -25,8 +25,10 @@ import {
   AccordionDetails,
   ToggleButtonGroup,
   ToggleButton,
+  Tooltip,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
   ResponsiveContainer,
   BarChart,
@@ -37,7 +39,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
 } from 'recharts';
 
@@ -301,7 +303,7 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                     <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => [value, 'Students']} />
+                <RechartsTooltip formatter={(value) => [value, 'Students']} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -314,7 +316,7 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip formatter={(value) => [value, 'Students']} />
+                <RechartsTooltip formatter={(value) => [value, 'Students']} />
                 <Legend />
                 <Bar dataKey="value" fill="#8884d8">
                   {detailedPieData.map((entry, index) => (
@@ -463,14 +465,23 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
         {/* Group Comparison (Z‑scores) */}
         {data.group_comparison && data.groups.length > 0 && (
           <Box mb={2}>
-            <Typography variant="subtitle1">Group Comparison (Z‑scores)</Typography>
+            <Typography variant="subtitle1">
+              Group Comparison (Z‑scores)
+              <Tooltip title="This Z-score compares each group's average GPA to all other groups.">
+                <InfoOutlinedIcon fontSize="small" sx={{ ml: 1, verticalAlign: 'middle' }} />
+              </Tooltip>
+            </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-              {/* always show all groups, regardless of selectedGroup */}
               {data.groups.map((g: any) => (
                 <Chip
                   key={g.group_name}
                   label={`${g.group_name}: ${g.z_score.toFixed(2)}`}
                   sx={getChipStyles(g.z_score)}
+                  icon={
+                    <Tooltip title="Group Z-score: Compares this group's GPA to all groups.">
+                      <InfoOutlinedIcon fontSize="small" />
+                    </Tooltip>
+                  }
                 />
               ))}
               <Typography variant="caption" sx={{ ml: 2 }}>
@@ -498,7 +509,7 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="grade" />
                           <YAxis />
-                          <Tooltip />
+                          <RechartsTooltip />
                           <Bar dataKey="count" fill="#8884d8">
                             {Object.entries(typeData.grade_distribution).map(([key, _], index) => (
                               <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
@@ -548,6 +559,23 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
           </FormControl>
         )}
 
+        <Box mb={2}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>What does G-score mean?</strong>
+            <Tooltip title="G-score compares a course's GPA to other courses at the same level (e.g., all 200-level courses).">
+              <InfoOutlinedIcon fontSize="small" sx={{ ml: 1, verticalAlign: 'middle' }} />
+            </Tooltip>
+            <br />
+            The G-score shown for each course is a z-score that compares the course's average GPA to other courses at the same level (e.g., all 200-level courses).<br />
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              <li><strong>G-score &gt; 0</strong>: Course GPA is above the average for its level.</li>
+              <li><strong>G-score &lt; 0</strong>: Course GPA is below the average for its level.</li>
+              <li><strong>G-score ≈ 0</strong>: Course GPA is near the average for its level.</li>
+            </ul>
+            This helps you quickly see which courses stand out (positively or negatively) compared to their peers.
+          </Alert>
+        </Box>
+
         <Typography variant="h6" gutterBottom>Course Details</Typography>
         {filteredCourses.map((course: any) => (
           <Accordion key={course.course_name} defaultExpanded>
@@ -574,6 +602,11 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                         fontWeight: 'bold',
                       }}
                       size="small"
+                      icon={
+                        <Tooltip title="Course G-score: Compares this course's GPA to other courses at the same level.">
+                          <InfoOutlinedIcon fontSize="small" />
+                        </Tooltip>
+                      }
                     />
                   )}
                 </Box>
@@ -596,7 +629,7 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="grade" />
                       <YAxis />
-                      <Tooltip formatter={(value: any, name: any) => [`${value} students`, `Grade: ${name}`]} />
+                      <RechartsTooltip formatter={(value: any, name: any) => [`${value} students`, `Grade: ${name}`]} />
                       <Bar dataKey="count" fill="#8884d8">
                         {(
                           chartDetail === 'basic'
@@ -700,26 +733,31 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                           <Typography variant="body2" sx={{ mr: 1 }}>
                             Z-Score:
                           </Typography>
-                          <Chip
-                            label={
-                              section.z_score !== undefined
-                                ? (section.z_score !== undefined ? section.z_score.toFixed(2) : 'N/A')
-                                : 'N/A'
-                            }
-                            color={
-                              section.z_score > 0.5
-                                ? 'success'
-                                : section.z_score < -0.5
-                                ? 'error'
-                                : 'default'
-                            }
-                            sx={{
-                              fontWeight: 'bold',
-                              bgcolor:
-                                getChipStyles(section.z_score).bgcolor,
-                              color: getChipStyles(section.z_score).color,
-                            }}
-                          />
+                          <Tooltip title="Section Z-score: Compares this section's GPA to other sections of the same course.">
+                            <Chip
+                              label={
+                                section.z_score !== undefined
+                                  ? (section.z_score !== undefined ? section.z_score.toFixed(2) : 'N/A')
+                                  : 'N/A'
+                              }
+                              color={
+                                section.z_score > 0.5
+                                  ? 'success'
+                                  : section.z_score < -0.5
+                                  ? 'error'
+                                  : 'default'
+                              }
+                              sx={{
+                                fontWeight: 'bold',
+                                bgcolor: getChipStyles(section.z_score).bgcolor,
+                                color: getChipStyles(section.z_score).color,
+                              }}
+                              size="small"
+                              icon={
+                                <InfoOutlinedIcon fontSize="small" />
+                              }
+                            />
+                          </Tooltip>
                           <Typography variant="caption" sx={{ ml: 1, color: '#888' }}>
                             {section.z_score > 0.5
                               ? 'Above Avg'
@@ -739,7 +777,7 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="grade" />
                             <YAxis />
-                            <Tooltip formatter={(value, name) => [`${value} students`, `Grade: ${name}`]} />
+                            <RechartsTooltip formatter={(value, name) => [`${value} students`, `Grade: ${name}`]} />
                             <Bar dataKey="count" fill="#8884d8">
                               {(
                                 chartDetail === 'basic'
