@@ -47,6 +47,7 @@ export default function App() {
         localStorage.setItem("session_id", data.session_id);
         console.log('Session reset. New ID:', data.session_id);
         setSuccessSnackbarOpen(true);
+        setTab(0); // Go back to the upload tab after reset
       })
       .catch(err => console.error('Error resetting session', err));
   };

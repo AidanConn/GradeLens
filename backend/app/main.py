@@ -469,8 +469,6 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
         "students": {},
         "improvement_lists": {
             "work_list": [],  # Students needing improvement
-            "at_risk": [],    # Students at risk of failing
-            "honor_roll": [], # Students performing exceptionally well
             "good_list": []   # Students performing well (B+ or better)
         }
     }
