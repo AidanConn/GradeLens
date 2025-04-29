@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { CssBaseline, AppBar, Toolbar, Typography,
   Container, Paper, Box, Tabs, Tab,
   Button, Dialog, DialogTitle, DialogContent,
-  DialogContentText, DialogActions
+  DialogContentText, DialogActions,
+  Snackbar, Alert
 } from '@mui/material';
 import { FileUpload } from './components/FileUpload';
 import { RunFilesList } from './components/RunFilesList';
@@ -12,6 +13,7 @@ export default function App() {
   const [tab, setTab] = useState(0);
   const didFetch = useRef(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+  const [successSnackbarOpen, setSuccessSnackbarOpen] = useState(false);
 
   useEffect(() => {
     if (didFetch.current) return;
@@ -44,6 +46,7 @@ export default function App() {
         setSessionId(data.session_id);
         localStorage.setItem("session_id", data.session_id);
         console.log('Session reset. New ID:', data.session_id);
+        setSuccessSnackbarOpen(true);
       })
       .catch(err => console.error('Error resetting session', err));
   };
@@ -63,6 +66,10 @@ export default function App() {
   };
   const handleCancelReset = () => {
     setOpenConfirmDialog(false);
+  };
+
+  const handleSnackbarClose = () => {
+    setSuccessSnackbarOpen(false);
   };
 
   return (
@@ -97,7 +104,10 @@ export default function App() {
       >
         {tab === 0 && (
           <Paper sx={{ p:3, height:'100%', overflow:'auto' }}>
-            <FileUpload sessionId={sessionId} />
+            <FileUpload 
+              sessionId={sessionId} 
+              onGoToRuns={() => setTab(1)} 
+            />
           </Paper>
         )}
         {tab === 1 && (
@@ -148,6 +158,20 @@ export default function App() {
           <Button onClick={handleConfirmReset} color="error">Reset</Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={successSnackbarOpen}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          Session has been reset successfully.
+        </Alert>
+      </Snackbar>
     </>
   );
 }

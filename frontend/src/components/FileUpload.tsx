@@ -6,6 +6,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 interface FileUploadProps {
   sessionId: string | null;
+  onGoToRuns: () => void;
 }
 
 /**
@@ -23,13 +24,14 @@ interface FileUploadProps {
  * @component
  * @param {Object} props - Component props
  * @param {string} [props.sessionId] - Optional session identifier to associate uploaded files with a specific user session
+ * @param {Function} props.onGoToRuns - Callback function to handle navigation to the "Runs" tab
  * 
  * @example
- * <FileUpload sessionId="user-session-123" />
+ * <FileUpload sessionId="user-session-123" onGoToRuns={() => console.log('Navigating to Runs')} />
  * 
  * @returns {JSX.Element} A step-by-step file upload interface with feedback indicators
  */
-export function FileUpload({ sessionId }: FileUploadProps) {
+export function FileUpload({ sessionId, onGoToRuns }: FileUploadProps) {
   // Existing state variables
   const [commonFiles, setCommonFiles] = useState<FileList | null>(null);
   const [runFile, setRunFile] = useState<File | null>(null);
@@ -137,26 +139,6 @@ export function FileUpload({ sessionId }: FileUploadProps) {
     }
   };
 
-  // Updated goToRunsTab function that doesn't refresh the page
-  const goToRunsTab = () => {
-    // Find the RunFilesList Paper element and scroll to it
-    const runsElement = document.querySelector('[data-testid="runs-list"]');
-    if (runsElement) {
-      runsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      // As a fallback, try to find any element that might contain the runs
-      const runsContainer = document.querySelector('.MuiPaper-root:nth-of-type(2)');
-      if (runsContainer) {
-        runsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
-
-    // If needed, also refresh the runs list
-    // We can trigger a global custom event that RunFilesList can listen for
-    const refreshEvent = new CustomEvent('refresh-runs');
-    window.dispatchEvent(refreshEvent);
-  };
-
   return (
     <Box sx={{ mb: 4 }}>
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
@@ -262,7 +244,7 @@ export function FileUpload({ sessionId }: FileUploadProps) {
               <Button 
                 variant="contained"
                 color="primary"
-                onClick={goToRunsTab}
+                onClick={onGoToRuns}
               >
                 Go to Runs
               </Button>
