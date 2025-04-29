@@ -123,6 +123,10 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [selectedGroup, _setSelectedGroup] = useState<string>('all');  // renamed setter to suppress TS6133
   const [chartDetail, setChartDetail] = useState<'basic' | 'detailed'>('basic');
+  const [workPage, setWorkPage] = useState(0);
+  const [workRowsPerPage, setWorkRowsPerPage] = useState(10);
+  const [goodPage, setGoodPage] = useState(0);
+  const [goodRowsPerPage, setGoodRowsPerPage] = useState(10);
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -141,6 +145,17 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
 
   const createSortHandler = (property: string) => () => {
     handleRequestSort(property);
+  };
+
+  const handleWorkPageChange = (_: unknown, newPage: number) => setWorkPage(newPage);
+  const handleWorkRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setWorkRowsPerPage(parseInt(e.target.value, 10));
+    setWorkPage(0);
+  };
+  const handleGoodPageChange = (_: unknown, newPage: number) => setGoodPage(newPage);
+  const handleGoodRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setGoodRowsPerPage(parseInt(e.target.value, 10));
+    setGoodPage(0);
   };
 
   const COLORS = ['#4caf50', '#8bc34a', '#ffeb3b', '#ff9800', '#f44336', '#9e9e9e', '#607d8b'];
@@ -315,37 +330,48 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {data.improvement_lists.work_list.slice(0, 10).map((student: any) => (
-                    <TableRow key={student.id}>
-                      <TableCell>{student.name}</TableCell>
-                      <TableCell>{student.id}</TableCell>
-                      <TableCell>{student.gpa.toFixed(2)}</TableCell>
-                      <TableCell>
-                        {student.courses.map((course: any) => {
-                          // Determine if this is a special grade that doesn't affect GPA
-                          const isSpecialGrade = ['W', 'I', 'NP'].includes(course.grade);
+                  {data.improvement_lists.work_list
+                    .slice(workPage * workRowsPerPage, workPage * workRowsPerPage + workRowsPerPage)
+                    .map((student: any) => (
+                      <TableRow key={student.id}>
+                        <TableCell>{student.name}</TableCell>
+                        <TableCell>{student.id}</TableCell>
+                        <TableCell>{student.gpa.toFixed(2)}</TableCell>
+                        <TableCell>
+                          {student.courses.map((course: any) => {
+                            // Determine if this is a special grade that doesn't affect GPA
+                            const isSpecialGrade = ['W', 'I', 'NP'].includes(course.grade);
 
-                          return (
-                            <Chip
-                              key={`${student.id}-${course.course}`}
-                              label={`${course.course}: ${course.grade} (${course.credit_hours} cr.)`}
-                              size="small"
-                              color={isSpecialGrade ? "default" : "error"}
-                              sx={{
-                                m: 0.3,
-                                fontStyle: isSpecialGrade ? 'italic' : 'normal',
-                                bgcolor: isSpecialGrade ? getGradeColor(course.grade) : undefined,
-                                color: isSpecialGrade ? 'white' : undefined
-                              }}
-                            />
-                          );
-                        })}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            return (
+                              <Chip
+                                key={`${student.id}-${course.course}`}
+                                label={`${course.course}: ${course.grade} (${course.credit_hours} cr.)`}
+                                size="small"
+                                color={isSpecialGrade ? "default" : "error"}
+                                sx={{
+                                  m: 0.3,
+                                  fontStyle: isSpecialGrade ? 'italic' : 'normal',
+                                  bgcolor: isSpecialGrade ? getGradeColor(course.grade) : undefined,
+                                  color: isSpecialGrade ? 'white' : undefined
+                                }}
+                              />
+                            );
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={data.improvement_lists.work_list.length}
+              rowsPerPage={workRowsPerPage}
+              page={workPage}
+              onPageChange={handleWorkPageChange}
+              onRowsPerPageChange={handleWorkRowsPerPageChange}
+            />
           </Box>
         )}
 
@@ -364,37 +390,48 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {data.improvement_lists.good_list.slice(0, 10).map((student: any) => (
-                    <TableRow key={student.id}>
-                      <TableCell>{student.name}</TableCell>
-                      <TableCell>{student.id}</TableCell>
-                      <TableCell>{student.gpa.toFixed(2)}</TableCell>
-                      <TableCell>
-                        {student.courses.map((course: any) => {
-                          // Determine if this is a special grade that doesn't affect GPA
-                          const isSpecialGrade = ['W', 'I', 'NP'].includes(course.grade);
+                  {data.improvement_lists.good_list
+                    .slice(goodPage * goodRowsPerPage, goodPage * goodRowsPerPage + goodRowsPerPage)
+                    .map((student: any) => (
+                      <TableRow key={student.id}>
+                        <TableCell>{student.name}</TableCell>
+                        <TableCell>{student.id}</TableCell>
+                        <TableCell>{student.gpa.toFixed(2)}</TableCell>
+                        <TableCell>
+                          {student.courses.map((course: any) => {
+                            // Determine if this is a special grade that doesn't affect GPA
+                            const isSpecialGrade = ['W', 'I', 'NP'].includes(course.grade);
 
-                          return (
-                            <Chip
-                              key={`${student.id}-${course.course}`}
-                              label={`${course.course}: ${course.grade} (${course.credit_hours} cr.)`}
-                              size="small"
-                              color={isSpecialGrade ? "default" : "success"}
-                              sx={{
-                                m: 0.3,
-                                fontStyle: isSpecialGrade ? 'italic' : 'normal',
-                                bgcolor: isSpecialGrade ? getGradeColor(course.grade) : undefined,
-                                color: isSpecialGrade ? 'white' : undefined
-                              }}
-                            />
-                          );
-                        })}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            return (
+                              <Chip
+                                key={`${student.id}-${course.course}`}
+                                label={`${course.course}: ${course.grade} (${course.credit_hours} cr.)`}
+                                size="small"
+                                color={isSpecialGrade ? "default" : "success"}
+                                sx={{
+                                  m: 0.3,
+                                  fontStyle: isSpecialGrade ? 'italic' : 'normal',
+                                  bgcolor: isSpecialGrade ? getGradeColor(course.grade) : undefined,
+                                  color: isSpecialGrade ? 'white' : undefined
+                                }}
+                              />
+                            );
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={data.improvement_lists.good_list.length}
+              rowsPerPage={goodRowsPerPage}
+              page={goodPage}
+              onPageChange={handleGoodPageChange}
+              onRowsPerPageChange={handleGoodRowsPerPageChange}
+            />
           </Box>
         )}
       </Box>
