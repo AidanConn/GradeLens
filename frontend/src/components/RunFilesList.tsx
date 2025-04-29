@@ -3,8 +3,7 @@ import {
   Box, Typography, List, ListItem, ListItemButton, ListItemText,
   Alert, Collapse, Button, Tabs, Tab, TextField, InputAdornment
 } from '@mui/material';
-import { DataVisualization } from './DataVisualization';
-import { EnhancedDataDisplay } from './EnhancedDataDisplay';
+import { EnhancedDataDisplay } from './DataDisplay';
 import SearchIcon from '@mui/icons-material/Search';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
@@ -327,11 +326,6 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
                   </Box>
                 )}
 
-                {calcDetails.courses && activeTab < 4 && (
-                  <Box mt={4}>
-                    <DataVisualization data={calcDetails} />
-                  </Box>
-                )}
               </Box>
             ) : (
               <Typography>

@@ -23,6 +23,8 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
@@ -69,7 +71,7 @@ const getGradeColor = (grade: string) => {
   if (grade === 'W') return gradeColors['W'];
   if (grade === 'I') return gradeColors['I'];
   if (grade === 'NP') return gradeColors['NP'];
-  return gradeColors['Other'];
+  return gradeColors[grade] || '#bdbdbd'; // Default to a neutral gray color if grade is invalid
 };
 
 // Function to create data for pie charts
@@ -119,7 +121,8 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedSection, setSelectedSection] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
-  const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [selectedGroup, _setSelectedGroup] = useState<string>('all');  // renamed setter to suppress TS6133
+  const [chartDetail, setChartDetail] = useState<'basic' | 'detailed'>('basic');
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -399,31 +402,34 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   };
 
   const renderCoursesView = () => {
-    if (!coursesList || coursesList.length === 0) {
-      return <Alert severity="info">No course data available</Alert>;
-    }
+    // derive filteredCourses based on selectedGroup
+    const filteredCourses = selectedGroup === 'all'
+      ? coursesList
+      : coursesList.filter((course: any) => {
+          const grp = data.groups.find((g: any) => g.group_name === selectedGroup);
+          return grp?.courses.includes(course.course_name);
+        });
 
     return (
       <Box>
-        {/* Group filter if groups are available */}
-        {data.groups && data.groups.length > 0 && (
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel id="group-select-label">Filter by Group</InputLabel>
-            <Select
-              labelId="group-select-label"
-              id="group-select"
-              value={selectedGroup}
-              label="Filter by Group"
-              onChange={(e) => setSelectedGroup(e.target.value)}
-            >
-              <MenuItem value="all">All Groups</MenuItem>
-              {groupOptions.filter(option => option !== 'all').map((group) => (
-                <MenuItem key={group} value={group}>
-                  {group}
-                </MenuItem>
+        {/* Group Comparison (Z‑scores) */}
+        {data.group_comparison && data.groups.length > 0 && (
+          <Box mb={2}>
+            <Typography variant="subtitle1">Group Comparison (Z‑scores)</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+              {/* always show all groups, regardless of selectedGroup */}
+              {data.groups.map((g: any) => (
+                <Chip
+                  key={g.group_name}
+                  label={`${g.group_name}: ${g.z_score.toFixed(2)}`}
+                  sx={getChipStyles(g.z_score)}
+                />
               ))}
-            </Select>
-          </FormControl>
+              <Typography variant="caption" sx={{ ml: 2 }}>
+                Mean: {data.group_comparison.mean}, Std Dev: {data.group_comparison.std_dev}
+              </Typography>
+            </Box>
+          </Box>
         )}
 
         {data.class_types && (
@@ -460,8 +466,42 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
           </Box>
         )}
 
+        {/* Toggle between basic/detailed grades */}
+        <Box mb={2}>
+          <ToggleButtonGroup
+            value={chartDetail}
+            exclusive
+            size="small"
+            onChange={(_e, val) => val && setChartDetail(val)}
+          >
+            <ToggleButton value="basic">Basic Grades</ToggleButton>
+            <ToggleButton value="detailed">Detailed Grades</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        {/* Filter by Group dropdown */}
+        {data.groups && data.groups.length > 0 && (
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="group-select-label">Filter by Group</InputLabel>
+            <Select
+              labelId="group-select-label"
+              id="group-select"
+              value={selectedGroup}
+              label="Filter by Group"
+              onChange={(e) => _setSelectedGroup(e.target.value)}  // use renamed setter
+            >
+              <MenuItem value="all">All Groups</MenuItem>
+              {groupOptions.filter(option => option !== 'all').map((group) => (
+                <MenuItem key={group} value={group}>
+                  {group}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
         <Typography variant="h6" gutterBottom>Course Details</Typography>
-        {coursesList.map((course: any) => (
+        {filteredCourses.map((course: any) => (
           <Accordion key={course.course_name} defaultExpanded>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -477,35 +517,27 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
             <AccordionDetails>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" gutterBottom>Grade Distribution</Typography>
+                  <Typography variant="subtitle2" gutterBottom>
+                    {chartDetail === 'basic' ? 'Grade Distribution' : 'Detailed Grade Distribution'}
+                  </Typography>
                   <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={Object.entries(course.grade_distribution).map(([key, value]) => ({ grade: key, count: value }))}>
+                    <BarChart
+                      data={
+                        chartDetail === 'basic'
+                          ? Object.entries(course.grade_distribution).map(([key, value]) => ({ grade: key, count: value }))
+                          : Object.entries(course.detailed_grade_distribution).map(([key, value]) => ({ grade: key, count: value }))
+                      }
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="grade" />
                       <YAxis />
-                      <Tooltip formatter={(value, name) => {
-                        return [`${value} students (${course.sections[0]?.credit_hours || 0} cr.)`, `Grade: ${name}`];
-                      }} />
+                      <Tooltip formatter={(value: any, name: any) => [`${value} students`, `Grade: ${name}`]} />
                       <Bar dataKey="count" fill="#8884d8">
-                        {Object.entries(course.grade_distribution).map(([key, _value], index) => (
-                          <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" gutterBottom>Detailed Grade Distribution</Typography>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={Object.entries(course.detailed_grade_distribution).map(([key, value]) => ({ grade: key, count: value }))}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="grade" />
-                      <YAxis />
-                      <Tooltip formatter={(value, name, _props) => {
-                        return [`${value} students (${course.sections[0]?.credit_hours || 0} cr.)`, `Grade: ${name}`];
-                      }} />
-                      <Bar dataKey="count" fill="#8884d8">
-                        {Object.entries(course.detailed_grade_distribution).map(([key, _value], index) => (
+                        {(
+                          chartDetail === 'basic'
+                            ? Object.entries(course.grade_distribution)
+                            : Object.entries(course.detailed_grade_distribution)
+                        ).map(([key], index) => (
                           <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
                         ))}
                       </Bar>
@@ -520,6 +552,19 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
     );
   };
 
+  const getChipStyles = (zScore: number | undefined) => {
+    if (zScore === undefined) {
+      return { bgcolor: '#bdbdbd', color: 'white' };
+    }
+    if (zScore > 0.5) {
+      return { bgcolor: '#4caf50', color: 'white' };
+    }
+    if (zScore < -0.5) {
+      return { bgcolor: '#f44336', color: 'white' };
+    }
+    return { bgcolor: '#bdbdbd', color: 'white' };
+  };
+
   const renderSectionsView = () => {
     if (!coursesList || coursesList.length === 0) {
       return <Alert severity="info">No section data available</Alert>;
@@ -527,6 +572,19 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
 
     return (
       <Box>
+        {/* Toggle between basic/detailed grades for sections */}
+        <Box mb={2}>
+          <ToggleButtonGroup
+            value={chartDetail}
+            exclusive
+            size="small"
+            onChange={(_e, val) => val && setChartDetail(val)}
+          >
+            <ToggleButton value="basic">Basic Grades</ToggleButton>
+            <ToggleButton value="detailed">Detailed Grades</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
         <FormControl fullWidth sx={{ mb: 2 }}>
           <InputLabel id="course-select-label">Filter by Course</InputLabel>
           <Select
@@ -569,7 +627,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                             Credits: {section.credit_hours}
                           </Typography>
                           <Typography variant="body2">
-                            Avg GPA: {section.average_gpa.toFixed(2)}
+                            Avg GPA: {section.average_gpa ? section.average_gpa.toFixed(2) : 'N/A'}
                           </Typography>
                         </Box>
                         {/* Z-Score Visual */}
@@ -580,7 +638,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                           <Chip
                             label={
                               section.z_score !== undefined
-                                ? section.z_score.toFixed(2)
+                                ? (section.z_score !== undefined ? section.z_score.toFixed(2) : 'N/A')
                                 : 'N/A'
                             }
                             color={
@@ -593,12 +651,8 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                             sx={{
                               fontWeight: 'bold',
                               bgcolor:
-                                section.z_score > 0.5
-                                  ? '#4caf50'
-                                  : section.z_score < -0.5
-                                  ? '#f44336'
-                                  : '#bdbdbd',
-                              color: 'white',
+                                getChipStyles(section.z_score).bgcolor,
+                              color: getChipStyles(section.z_score).color,
                             }}
                           />
                           <Typography variant="caption" sx={{ ml: 1, color: '#888' }}>
@@ -611,19 +665,22 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
                         </Box>
                         <ResponsiveContainer width="100%" height={200}>
                           <BarChart
-                            data={Object.entries(section.grade_distribution).map(([key, value]) => ({
-                              grade: key,
-                              count: value
-                            }))}
+                            data={(
+                              chartDetail === 'basic'
+                                ? Object.entries(section.grade_distribution)
+                                : Object.entries(section.detailed_grade_distribution)
+                            ).map(([key, value]) => ({ grade: key, count: value }))}
                           >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="grade" />
                             <YAxis />
-                            <Tooltip formatter={(value, name) => {
-                              return [`${value} students (${section.credit_hours} cr.)`, `Grade: ${name}`];
-                            }} />
+                            <Tooltip formatter={(value, name) => [`${value} students`, `Grade: ${name}`]} />
                             <Bar dataKey="count" fill="#8884d8">
-                              {Object.entries(section.grade_distribution).map(([key, _value], index) => (
+                              {(
+                                chartDetail === 'basic'
+                                  ? Object.entries(section.grade_distribution)
+                                  : Object.entries(section.detailed_grade_distribution)
+                              ).map(([key], index) => (
                                 <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
                               ))}
                             </Bar>
