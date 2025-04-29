@@ -2,7 +2,7 @@ import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
   palette: {
-    primary: { main: '#646cff' },
+    primary: { main: '#123456' }, //#endregion dark blue
     secondary: { main: '#ffb300', contrastText: '#ffffff' },  // friendlier amber
     background: { default: '#f5f5f5', paper: '#ffffff' },
   },

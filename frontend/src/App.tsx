@@ -137,9 +137,6 @@ export default function App() {
           <Typography variant="body2">
             Developed by CALM Byte
           </Typography>
-          <Typography variant="body2">
-            v1.0.0
-          </Typography>
         </Container>
       </Box>
 
