@@ -1,19 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  CssBaseline,
-  AppBar,
-  Toolbar,
-  Typography,
-  Box,
-  Container,
-  Paper
+import { useEffect, useRef, useState } from 'react';
+import { CssBaseline, AppBar, Toolbar, Typography,
+  Container, Paper, Box, Tabs, Tab,
+  Button, Dialog, DialogTitle, DialogContent,
+  DialogContentText, DialogActions
 } from '@mui/material';
 import { FileUpload } from './components/FileUpload';
 import { RunFilesList } from './components/RunFilesList';
 
-const App: React.FC = () => {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+export default function App() {
+  const [sessionId, setSessionId] = useState<string|null>(null);
+  const [tab, setTab] = useState(0);
   const didFetch = useRef(false);
+  const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
 
   useEffect(() => {
     if (didFetch.current) return;
@@ -37,55 +35,119 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // clears localStorage, fetches a fresh session, and logs it
+  const resetSession = () => {
+    localStorage.removeItem("session_id");
+    fetch(`${import.meta.env.VITE_API_URL}/`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        setSessionId(data.session_id);
+        localStorage.setItem("session_id", data.session_id);
+        console.log('Session reset. New ID:', data.session_id);
+      })
+      .catch(err => console.error('Error resetting session', err));
+  };
+
+  // intercept tab clicks: value 2 triggers dialog, otherwise select Upload/Runs
+  const handleTabChange = (_: unknown, newValue: number) => {
+    if (newValue === 2) {
+      setOpenConfirmDialog(true);
+    } else {
+      setTab(newValue);
+    }
+  };
+
+  const handleConfirmReset = () => {
+    setOpenConfirmDialog(false);
+    resetSession();
+  };
+  const handleCancelReset = () => {
+    setOpenConfirmDialog(false);
+  };
+
   return (
     <>
       <CssBaseline />
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <AppBar position="fixed">
-          <Toolbar>
-            <Typography variant="h6">GradeLens Dashboard</Typography>
-          </Toolbar>
-        </AppBar>
-        <Toolbar />
-        <Container disableGutters maxWidth={false} sx={{ flex: 1, overflowY: 'auto', pb: 3 }}>
-          {/* Welcome Message */}
-          <Typography 
-            variant="h4" 
-            sx={{ textAlign: 'center', mt: 2, mb: 4, fontWeight: 'bold', color: '#646cff' }}
-          >
-            Welcome to GradeLens!
+      <AppBar position="static" color="primary">
+        <Toolbar>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            GradeLens Dashboard
           </Typography>
-
-          <Typography variant="body1" sx={{ mb: 3, textAlign: 'center' }}>
-            Session ID: {sessionId || "Loading..."}
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 4,
-              minHeight: '400px',
-              mt: 2,
-            }}
+          <Tabs
+            value={tab}
+            onChange={handleTabChange}
+            textColor="inherit"
+            indicatorColor="secondary"
+            sx={{ ml: 2 }}
           >
-            <Paper id="upload-section" sx={{ p: 3, width: '100%', maxWidth: 500 }}>
-              <FileUpload sessionId={sessionId} />
-            </Paper>
+            <Tab label="Upload" sx={{ textTransform: 'none', color: 'common.white' }} />
+            <Tab label="Runs"   sx={{ textTransform: 'none', color: 'common.white' }} />
+            <Tab
+              label="Reset Session"
+              value={2}
+              sx={{ textTransform: 'none', color: 'common.white', ml: 'auto' }}
+            />
+          </Tabs>
+        </Toolbar>
+      </AppBar>
 
-            <Paper id="runs-section" sx={{ p: 3, width: '100%' }} data-testid="runs-list">
-              <RunFilesList sessionId={sessionId} />
-            </Paper>
-          </Box>
+      <Container 
+        maxWidth={false} disableGutters 
+        sx={{ mt:4, mb:4, height: 'calc(100vh - 128px)' }}
+      >
+        {tab === 0 && (
+          <Paper sx={{ p:3, height:'100%', overflow:'auto' }}>
+            <FileUpload sessionId={sessionId} />
+          </Paper>
+        )}
+        {tab === 1 && (
+          <Paper sx={{ p:3, height:'100%', overflow:'auto' }}>
+            <RunFilesList sessionId={sessionId} />
+          </Paper>
+        )}
+      </Container>
+      {/* Footer */}
+      <Box component="footer" sx={{
+        mt: 4,
+        py: 3,
+        px: 2,
+        backgroundColor: 'primary.main',
+        color: 'primary.contrastText'
+      }}>
+        <Container maxWidth="md" sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          alignItems: 'center'
+        }}>
+          <Typography variant="body2">
+            © {new Date().getFullYear()} GradeLens. All rights reserved.
+          </Typography>
+          <Typography variant="body2">
+            Developed by CALM Byte
+          </Typography>
+          <Typography variant="body2">
+            v1.0.0
+          </Typography>
         </Container>
-        <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f5f5f5', width: '100%' }}>
-          <Typography variant="body2" color="textSecondary">
-            © {new Date().getFullYear()} GradeLens. All rights reserved. Developed by CALM Byte
-          </Typography>
-        </Box>
       </Box>
+
+      {/* Confirm Reset Dialog */}
+      <Dialog
+        open={openConfirmDialog}
+        onClose={handleCancelReset}
+      >
+        <DialogTitle>Confirm Session Reset</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to reset the session? This will clear all session data.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelReset}>Cancel</Button>
+          <Button onClick={handleConfirmReset} color="error">Reset</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
-};
-
-export default App;
+}

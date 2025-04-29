@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, FC, ChangeEvent } from 'react';
 import {
   Box,
   Typography,
@@ -110,7 +110,7 @@ const createPieData = (distribution: any) => {
  *   searchTerm="smith"
  * />
  */
-export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
+export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
   data,
   displayType,
   searchTerm = '',
@@ -132,7 +132,7 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -148,12 +148,12 @@ export const EnhancedDataDisplay: React.FC<EnhancedDataDisplayProps> = ({
   };
 
   const handleWorkPageChange = (_: unknown, newPage: number) => setWorkPage(newPage);
-  const handleWorkRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWorkRowsPerPageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setWorkRowsPerPage(parseInt(e.target.value, 10));
     setWorkPage(0);
   };
   const handleGoodPageChange = (_: unknown, newPage: number) => setGoodPage(newPage);
-  const handleGoodRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGoodRowsPerPageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setGoodRowsPerPage(parseInt(e.target.value, 10));
     setGoodPage(0);
   };

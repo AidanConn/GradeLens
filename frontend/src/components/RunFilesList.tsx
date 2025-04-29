@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, FC, SyntheticEvent } from 'react';
 import {
   Box, Typography, List, ListItem, ListItemButton, ListItemText,
   Alert, Collapse, Button, Tabs, Tab, TextField, InputAdornment,
@@ -20,7 +20,7 @@ interface RunFilesListProps {
   sessionId: string | null;
 }
 
-export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
+export const RunFilesList: FC<RunFilesListProps> = ({ sessionId }) => {
   const [runs, setRuns] = useState<Run[]>([]);
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
   const [calcDetails, setCalcDetails] = useState<any>(null);
@@ -202,7 +202,7 @@ export const RunFilesList: React.FC<RunFilesListProps> = ({ sessionId }) => {
     }
   };
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 

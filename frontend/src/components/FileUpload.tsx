@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, ChangeEvent } from 'react';
 import { Box, Button, Alert, Input, Typography, Divider, Paper, Stepper, Step, StepLabel, StepContent, CircularProgress } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -41,7 +41,7 @@ export function FileUpload({ sessionId }: FileUploadProps) {
   const [uploadedRunFile, setUploadedRunFile] = useState(false);
 
   // Existing handlers for file changes and uploads
-  const handleCommonFilesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCommonFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       setCommonFiles(event.target.files);
       setUploadedCommonFiles(false); // Reset uploaded state when new files are selected
@@ -49,7 +49,7 @@ export function FileUpload({ sessionId }: FileUploadProps) {
     }
   };
 
-  const handleRunFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRunFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       setRunFile(event.target.files[0]);
       setUploadedRunFile(false); // Reset uploaded state when new file is selected
