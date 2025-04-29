@@ -99,20 +99,38 @@ export default function App() {
         </Toolbar>
       </AppBar>
 
-      <Container 
-        maxWidth={false} disableGutters 
-        sx={{ mt:4, mb:4, height: 'calc(100vh - 128px)' }}
+      <Container
+        maxWidth="md" // Changed from "sm" to "md" for a wider layout
+        disableGutters
+        sx={{
+          mt: 4,
+          mb: 4,
+          minHeight: 'calc(100vh - 128px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+        }}
       >
         {tab === 0 && (
-          <Paper sx={{ p:3, height:'100%', overflow:'auto' }}>
-            <FileUpload 
-              sessionId={sessionId} 
-              onGoToRuns={() => setTab(1)} 
+          <Paper
+            sx={{
+              p: 3,
+              width: '100%',
+              maxWidth: 900, // Increased maxWidth for the Paper
+              mx: 'auto',
+              boxSizing: 'border-box',
+              overflow: 'visible',
+            }}
+          >
+            <FileUpload
+              sessionId={sessionId}
+              onGoToRuns={() => setTab(1)}
             />
           </Paper>
         )}
         {tab === 1 && (
-          <Paper sx={{ p:3, height:'100%', overflow:'auto' }}>
+          <Paper sx={{ p: 3, height: '100%', overflow: 'auto' }}>
             <RunFilesList sessionId={sessionId} />
           </Paper>
         )}
