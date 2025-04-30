@@ -26,9 +26,9 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Tooltip,
-} from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+} from '@mui/material'; // Import Material-UI components for styling and layout
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; // Icon for expanding/collapsing accordions
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; // Icon for info tooltips
 import {
   ResponsiveContainer,
   BarChart,
@@ -41,10 +41,10 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Legend,
-} from 'recharts';
+} from 'recharts'; // Import Recharts components for data visualization
 
-// Define the props for the EnhancedDataDisplay component
-interface EnhancedDataDisplayProps {
+// Define the props for the DataDisplay component
+interface DataDisplayProps {
   data: any;
   displayType: 'summary' | 'courses' | 'sections' | 'students';
   searchTerm?: string;
@@ -106,13 +106,13 @@ const createPieData = (distribution: any) => {
  *   - students: Filterable and sortable student table with pagination
  * 
  * @example
- * <EnhancedDataDisplay 
+ * <DataDisplay 
  *   data={academicData} 
  *   displayType="summary" 
  *   searchTerm="smith"
  * />
  */
-export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
+export const DataDisplay: FC<DataDisplayProps> = ({
   data,
   displayType,
   searchTerm = '',
@@ -246,6 +246,7 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
       (grade_distribution.B || 0) +
       (grade_distribution.C || 0);
 
+    // Render the summary view with cards and charts
     return (
       <Box>
         {/* Summary Cards */}
@@ -273,7 +274,7 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
               <CardContent>
                 <Typography variant="h6" gutterBottom>Pass Rate</Typography>
                 <Typography variant="h3" sx={{ textAlign: 'center' }}>
-                  { totalGradeEntries > 0
+                  {totalGradeEntries > 0
                     ? ((passEntries / totalGradeEntries * 100).toFixed(1))
                     : '0.0'
                   }%
@@ -456,9 +457,9 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
     const filteredCourses = selectedGroup === 'all'
       ? coursesList
       : coursesList.filter((course: any) => {
-          const grp = data.groups.find((g: any) => g.group_name === selectedGroup);
-          return grp?.courses.includes(course.course_name);
-        });
+        const grp = data.groups.find((g: any) => g.group_name === selectedGroup);
+        return grp?.courses.includes(course.course_name);
+      });
 
     return (
       <Box>
@@ -590,8 +591,8 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                               course.g_score > 0.5
                                 ? '#4caf50'
                                 : course.g_score < -0.5
-                                ? '#f44336'
-                                : '#bdbdbd',
+                                  ? '#f44336'
+                                  : '#bdbdbd',
                             color: 'white',
                             fontWeight: 'bold',
                           }}
@@ -741,8 +742,8 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                                 section.z_score > 0.5
                                   ? 'success'
                                   : section.z_score < -0.5
-                                  ? 'error'
-                                  : 'default'
+                                    ? 'error'
+                                    : 'default'
                               }
                               sx={{
                                 fontWeight: 'bold',
@@ -759,8 +760,8 @@ export const EnhancedDataDisplay: FC<EnhancedDataDisplayProps> = ({
                             {section.z_score > 0.5
                               ? 'Above Avg'
                               : section.z_score < -0.5
-                              ? 'Below Avg'
-                              : 'Near Avg'}
+                                ? 'Below Avg'
+                                : 'Near Avg'}
                           </Typography>
                         </Box>
                         <ResponsiveContainer width="100%" height={200}>

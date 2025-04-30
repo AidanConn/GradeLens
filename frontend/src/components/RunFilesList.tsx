@@ -3,8 +3,8 @@ import {
   Box, Typography, List, ListItem, ListItemButton, ListItemText,
   Alert, Collapse, Button, Tabs, Tab, TextField, InputAdornment,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Paper, Chip
-} from '@mui/material';
-import { EnhancedDataDisplay } from './DataDisplay';
+} from '@mui/material'; // Import Material-UI components for styling and layout
+import { DataDisplay } from './DataDisplay'; 
 import SearchIcon from '@mui/icons-material/Search';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
@@ -324,7 +324,7 @@ export const RunFilesList: FC<RunFilesListProps> = ({ sessionId }) => {
 
                 {activeTab === 0 && (
                   <Box>
-                    <EnhancedDataDisplay
+                    <DataDisplay
                       data={calcDetails}
                       displayType="summary"
                     />
@@ -333,7 +333,7 @@ export const RunFilesList: FC<RunFilesListProps> = ({ sessionId }) => {
 
                 {activeTab === 1 && (
                   <Box>
-                    <EnhancedDataDisplay
+                    <DataDisplay
                       data={calcDetails}
                       displayType="courses"
                     />
@@ -342,7 +342,7 @@ export const RunFilesList: FC<RunFilesListProps> = ({ sessionId }) => {
 
                 {activeTab === 2 && (
                   <Box>
-                    <EnhancedDataDisplay
+                    <DataDisplay
                       data={calcDetails}
                       displayType="sections"
                     />
@@ -367,7 +367,7 @@ export const RunFilesList: FC<RunFilesListProps> = ({ sessionId }) => {
                       }}
                       sx={{ mb: 2 }}
                     />
-                    <EnhancedDataDisplay
+                    <DataDisplay
                       data={calcDetails}
                       displayType="students"
                       searchTerm={searchTerm}

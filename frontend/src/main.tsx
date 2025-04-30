@@ -5,6 +5,7 @@ import App from './App.tsx';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
 
+// Import the main application component and the custom theme
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider theme={theme}>

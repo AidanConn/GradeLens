@@ -21,15 +21,6 @@ interface FileUploadProps {
  * The component handles file validation, upload status tracking, and error management.
  * It also provides feedback to users through success/error messages and visual indicators.
  * 
- * @component
- * @param {Object} props - Component props
- * @param {string} [props.sessionId] - Optional session identifier to associate uploaded files with a specific user session
- * @param {Function} props.onGoToRuns - Callback function to handle navigation to the "Runs" tab
- * 
- * @example
- * <FileUpload sessionId="user-session-123" onGoToRuns={() => console.log('Navigating to Runs')} />
- * 
- * @returns {JSX.Element} A step-by-step file upload interface with feedback indicators
  */
 export function FileUpload({ sessionId, onGoToRuns }: FileUploadProps) {
   // Existing state variables
@@ -72,6 +63,8 @@ export function FileUpload({ sessionId, onGoToRuns }: FileUploadProps) {
       formData.append('files', file);
     });
   
+    // This triggers the upload to the server
+    // The server will handle the files and return a response
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload_sec_grp/`, {
         method: 'POST',
@@ -139,6 +132,8 @@ export function FileUpload({ sessionId, onGoToRuns }: FileUploadProps) {
     }
   };
 
+  // Render the component
+  // The component provides a step-by-step guide for users to upload files and calculate results
   return (
     <Box sx={{ mb: 4 }}>
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>

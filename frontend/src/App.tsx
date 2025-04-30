@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react'; // React hooks for managing state and lifecycle
 import { CssBaseline, AppBar, Toolbar, Typography,
   Container, Paper, Box, Tabs, Tab,
   Button, Dialog, DialogTitle, DialogContent,
   DialogContentText, DialogActions,
   Snackbar, Alert
-} from '@mui/material';
-import { FileUpload } from './components/FileUpload';
-import { RunFilesList } from './components/RunFilesList';
+} from '@mui/material'; // Import Material-UI components for styling and layout
+import { FileUpload } from './components/FileUpload'; // Import the FileUpload component for file uploads
+import { RunFilesList } from './components/RunFilesList'; // Import the RunFilesList component for displaying run files
 
+// Main application component that manages the dashboard layout and functionality
 export default function App() {
   const [sessionId, setSessionId] = useState<string|null>(null);
   const [tab, setTab] = useState(0);
@@ -15,6 +16,8 @@ export default function App() {
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [successSnackbarOpen, setSuccessSnackbarOpen] = useState(false);
 
+  // Initialize session ID on component mount
+  // Check if a session ID is already stored in localStorage, if not, fetch a new one
   useEffect(() => {
     if (didFetch.current) return;
     didFetch.current = true;
@@ -73,6 +76,8 @@ export default function App() {
     setSuccessSnackbarOpen(false);
   };
 
+  // Render the main application layout
+  // including the AppBar, Tabs, and the main content area
   return (
     <>
       <CssBaseline />

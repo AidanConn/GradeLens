@@ -1,5 +1,6 @@
 import { createTheme } from '@mui/material/styles';
 
+// Create a custom theme for the application using Material-UI's createTheme function
 const theme = createTheme({
   palette: {
     primary: { main: '#123456' }, //#endregion dark blue
