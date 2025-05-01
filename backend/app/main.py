@@ -929,6 +929,7 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     
     return results
 
+# Export to Excel functionality
 @router.get("/runs/{run_id}/export")
 async def export_run_to_excel(
     run_id: str,
@@ -1235,4 +1236,5 @@ async def export_run_to_excel(
         print(f"Excel export error: {error_details}")
         raise HTTPException(status_code=500, detail=f"Error creating Excel report: {str(e)}")
 
+# Main application entry point
 app.include_router(router, prefix="/api")
