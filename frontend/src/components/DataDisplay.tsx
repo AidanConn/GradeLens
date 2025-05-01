@@ -284,6 +284,83 @@ export const DataDisplay: FC<DataDisplayProps> = ({
           </Grid>
         </Grid>
 
+        {/* Group Z-Scores */}
+        {data.groups && data.groups.length > 0 && (
+          <Box mb={4}>
+            <Typography variant="h6" gutterBottom>Group Z-Scores</Typography>
+            <Grid container spacing={2}>
+              {data.groups.map((group: any) => (
+                <Grid item xs={12} md={6} key={group.group_name}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        {group.group_name}
+                      </Typography>
+                      <Typography variant="body2">
+                        Z-Score: <Chip
+                          label={group.z_score !== undefined ? group.z_score.toFixed(2) : 'N/A'}
+                          sx={getChipStyles(group.z_score)}
+                          size="small"
+                          icon={
+                            <Tooltip title="Group Z-score: Compares this group's GPA to all groups.">
+                              <InfoOutlinedIcon fontSize="small" />
+                            </Tooltip>
+                          }
+                        />
+                      </Typography>
+                      <Typography variant="body2">
+                        Average GPA: {group.average_gpa !== undefined ? group.average_gpa.toFixed(2) : 'N/A'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>
+                        <strong>Courses in this group:</strong>
+                      </Typography>
+                      <TableContainer component={Paper} variant="outlined" sx={{ mb: 1 }}>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Course</TableCell>
+                              <TableCell>Avg GPA</TableCell>
+                              <TableCell>Z-score (in group)</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {(group.courses || []).map((courseCode: string) => (
+                              <TableRow key={courseCode}>
+                                <TableCell>{courseCode}</TableCell>
+                                <TableCell>
+                                  {data.courses?.[courseCode]?.average_gpa !== undefined
+                                    ? data.courses[courseCode].average_gpa.toFixed(2)
+                                    : 'N/A'}
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={
+                                      group.course_z_scores && group.course_z_scores[courseCode] !== undefined
+                                        ? group.course_z_scores[courseCode].toFixed(2)
+                                        : 'N/A'
+                                    }
+                                    sx={getChipStyles(group.course_z_scores && group.course_z_scores[courseCode])}
+                                    size="small"
+                                    icon={
+                                      <Tooltip title="Course Z-score within this group">
+                                        <InfoOutlinedIcon fontSize="small" />
+                                      </Tooltip>
+                                    }
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
+
         {/* Grade Distribution Charts */}
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>

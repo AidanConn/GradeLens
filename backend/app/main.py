@@ -745,19 +745,35 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             # --- END Z-SCORE CALCULATION ---
 
     # --- GROUP Z‑SCORE CALCULATION FOR GROUPS ---
-    # Compute each group's aggregate GPA (weighted by total students)
     group_gpas = []
     for grp in results["groups"]:
         pts = 0.0
         studs = 0
+        course_gpas = []
+        course_gpa_map = {}
         for code in grp["courses"]:
             c = results["courses"].get(code)
             if c:
                 pts += c["average_gpa"] * c["total_students"]
                 studs += c["total_students"]
+                course_gpas.append(c["average_gpa"])
+                course_gpa_map[code] = c["average_gpa"]
         grp_gpa = round(pts / studs, 2) if studs > 0 else 0.0
         grp["average_gpa"] = grp_gpa
         group_gpas.append(grp_gpa)
+
+        # --- Per-group course Z-score calculation ---
+        if course_gpas:
+            mean_gpa = sum(course_gpas) / len(course_gpas)
+            std_dev = (sum((g - mean_gpa) ** 2 for g in course_gpas) / len(course_gpas)) ** 0.5 if len(course_gpas) > 1 else 0.0
+        else:
+            mean_gpa = std_dev = 0.0
+
+        grp["course_z_scores"] = {}
+        for code in grp["courses"]:
+            gpa = course_gpa_map.get(code, 0.0)
+            z = round((gpa - mean_gpa) / std_dev, 2) if std_dev > 0 else 0.0
+            grp["course_z_scores"][code] = z
 
     # Calculate overall mean and std‑dev of group GPAs
     if group_gpas:
