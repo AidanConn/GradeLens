@@ -811,18 +811,21 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
             # --- END Z-SCORE CALCULATION ---
 
     # --- GROUP Z‑SCORE CALCULATION FOR GROUPS ---
-    # Compute each group's aggregate GPA (weighted by total students)
     group_gpas = []
     for grp in results["groups"]:
         if "courses" not in grp:
             continue
         pts = 0.0
         studs = 0
+        course_gpas = []
+        course_gpa_map = {}
         for code in grp["courses"]:
             c = results["courses"].get(code)
             if c:
                 pts += c["average_gpa"] * c["total_students"]
                 studs += c["total_students"]
+                course_gpas.append(c["average_gpa"])
+                course_gpa_map[code] = c["average_gpa"]
         grp_gpa = round(pts / studs, 2) if studs > 0 else 0.0
         grp["average_gpa"] = grp_gpa
         group_gpas.append(grp_gpa)
