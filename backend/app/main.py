@@ -538,15 +538,18 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
         group_name = grp_data.get("group_name", "Unknown Group")
         sections = grp_data.get("sections", [])
         
+        # Deduplicate sections for this group
+        unique_sections = list(dict.fromkeys(sections))
+        
         group_results = {
             "group_name": group_name,
-            "sections": sections,
+            "sections": unique_sections,  # Only unique sections
             "courses": []
         }
         
         # Group sections by actual course code
         sections_by_course = {}
-        for section in sections:
+        for section in unique_sections:
             course_code = extract_course_code(section)
             if course_code not in sections_by_course:
                 sections_by_course[course_code] = []
@@ -579,6 +582,69 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
                     results["class_types"][course_type]["courses"].append(course_code)
         
         group_results["courses"] = list(sections_by_course.keys())
+        
+        # --- Group-internal z-score for sections ---
+        # Collect section GPAs for this group (unique only)
+        section_gpa_map = {}
+        for course_code, course_sections in sections_by_course.items():
+            for section in course_sections:
+                section_file = f"{section}.json"
+                section_path = session_files_dir / section_file
+                
+                if not section_path.exists():
+                    continue
+                    
+                # Load the section data
+                with open(section_path, "r", encoding="utf-8") as f:
+                    section_data = json.load(f)
+                    
+                students = section_data.get("students", [])
+                section_info = section_data.get("course", {})
+                
+                # Get credit hours for this section
+                credit_hours = section_info.get("credit_hours", 3.0)  # Default to 3.0 if not specified
+                if credit_hours is None:
+                    credit_hours = 3.0  # Default if explicitly None
+                    
+                # Calculate section GPA (weighted by credit hours)
+                section_total_points = 0.0
+                section_graded_students = 0
+                
+                for student in students:
+                    grade = student.get("grade", "").upper()
+                    if grade in grade_values:
+                        grade_point = grade_values[grade]
+                        section_total_points += grade_point * credit_hours
+                        section_graded_students += 1
+                
+                if section_graded_students > 0 and credit_hours > 0:
+                    avg_gpa = round(section_total_points / (section_graded_students * credit_hours), 2)
+                else:
+                    avg_gpa = 0.0
+                
+                section_gpa_map[section] = avg_gpa
+        
+        # Compute mean and stddev for group-internal z-score
+        gpa_values = list(section_gpa_map.values())
+        if gpa_values:
+            mean_gpa = sum(gpa_values) / len(gpa_values)
+            stddev_gpa = math.sqrt(sum((g - mean_gpa) ** 2 for g in gpa_values) / len(gpa_values)) if len(gpa_values) > 1 else 0.0
+        else:
+            mean_gpa = stddev_gpa = 0.0
+        
+        # Assign group_z_score to each section in this group
+        group_section_z_scores = {}
+        for section, gpa in section_gpa_map.items():
+            if stddev_gpa > 0:
+                group_section_z_scores[section] = round((gpa - mean_gpa) / stddev_gpa, 2)
+            else:
+                group_section_z_scores[section] = 0.0
+        
+        group_results["section_gpas"] = section_gpa_map
+        group_results["section_group_z_scores"] = group_section_z_scores
+        group_results["group_section_z_mean"] = round(mean_gpa, 2)
+        group_results["group_section_z_stddev"] = round(stddev_gpa, 2)
+        
         results["groups"].append(group_results)
         
         # Process each section and add to appropriate course
@@ -748,6 +814,8 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     # Compute each group's aggregate GPA (weighted by total students)
     group_gpas = []
     for grp in results["groups"]:
+        if "courses" not in grp:
+            continue
         pts = 0.0
         studs = 0
         for code in grp["courses"]:
@@ -758,6 +826,18 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
         grp_gpa = round(pts / studs, 2) if studs > 0 else 0.0
         grp["average_gpa"] = grp_gpa
         group_gpas.append(grp_gpa)
+
+        # --- Z-SCORE OF COURSES WITHIN THIS GROUP ---
+        # Only for the courses in this group
+        course_gpas = [results["courses"][code]["average_gpa"] for code in grp["courses"] if code in results["courses"]]
+        if course_gpas:
+            mean = sum(course_gpas) / len(course_gpas)
+            std = math.sqrt(sum((g - mean) ** 2 for g in course_gpas) / len(course_gpas)) if len(course_gpas) > 1 else 0.0
+            grp["course_z_scores"] = {}
+            for code in grp["courses"]:
+                c = results["courses"].get(code)
+                if c:
+                    grp["course_z_scores"][code] = round((c["average_gpa"] - mean) / std, 2) if std > 0 else 0.0
 
     # Calculate overall mean and std‑dev of group GPAs
     if group_gpas:
@@ -853,6 +933,8 @@ def process_run_file(run_file_path: Path, associated_files: dict, session_id: st
     # Compute each group's aggregate GPA (weighted by total students)
     group_gpas = []
     for grp in results["groups"]:
+        if "courses" not in grp:
+            continue
         pts = 0.0
         studs = 0
         for code in grp["courses"]:
@@ -1235,6 +1317,30 @@ async def export_run_to_excel(
         error_details = traceback.format_exc()
         print(f"Excel export error: {error_details}")
         raise HTTPException(status_code=500, detail=f"Error creating Excel report: {str(e)}")
+
+# Z-score calculation for group courses
+def z_scores_for_group_courses(courses_in_group, course_gpa_map):
+    """
+    Calculate Z-scores for courses within a group based on their GPAs.
+    
+    Args:
+        courses_in_group: List of course codes (e.g., ['COMSC110', 'COMSC230', 'COMSC401'])
+        course_gpa_map: Dictionary mapping course code to average GPA (e.g., {'COMSC110': 3.1, ...})
+    
+    Returns:
+        Dictionary mapping course code to Z-score.
+    """
+    gpas = [course_gpa_map[code] for code in courses_in_group if code in course_gpa_map]
+    if not gpas:
+        return {}
+    mean = sum(gpas) / len(gpas)
+    std = (sum((g - mean) ** 2 for g in gpas) / len(gpas)) ** 0.5 if len(gpas) > 1 else 0.0
+    z_scores = {}
+    for code in courses_in_group:
+        gpa = course_gpa_map.get(code)
+        if gpa is not None:
+            z_scores[code] = (gpa - mean) / std if std > 0 else 0.0
+    return z_scores
 
 # Main application entry point
 app.include_router(router, prefix="/api")

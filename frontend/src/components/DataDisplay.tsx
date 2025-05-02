@@ -230,6 +230,19 @@ export const DataDisplay: FC<DataDisplayProps> = ({
     page * rowsPerPage + rowsPerPage
   );
 
+  // Build a map from group to course z-scores
+  const courseGroupZMap: Record<string, { course: string, z: number }[]> = {};
+  if (data.groups && Array.isArray(data.groups)) {
+    data.groups.forEach((group: any) => {
+      if (group.courses && group.courses.length && group.z_score !== undefined) {
+        courseGroupZMap[group.group_name] = group.courses.map((course: string) => ({
+          course,
+          z: group.z_score // If you have per-course z-scores within group, use that value here instead
+        }));
+      }
+    });
+  }
+
   const renderSummaryView = () => {
     // Check if summary data is available
     if (!data.summary) return <Alert severity="info">No summary data available</Alert>;
@@ -288,6 +301,9 @@ export const DataDisplay: FC<DataDisplayProps> = ({
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Typography variant="h6" gutterBottom>Grade Distribution</Typography>
+            <Typography variant="caption" color="textSecondary">
+              (Counts all grades, not unique students)
+            </Typography>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -312,6 +328,9 @@ export const DataDisplay: FC<DataDisplayProps> = ({
           {/* Detailed Grade Distribution */}
           <Grid item xs={12} md={6}>
             <Typography variant="h6" gutterBottom>Detailed Grade Distribution</Typography>
+            <Typography variant="caption" color="textSecondary">
+              (Counts all grades, not unique students)
+            </Typography>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={detailedPieData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -328,6 +347,107 @@ export const DataDisplay: FC<DataDisplayProps> = ({
             </ResponsiveContainer>
           </Grid>
         </Grid>
+
+        {/* Group Z-Scores */}
+        {data.groups && data.groups.length > 0 && (
+          <Box mb={4}>
+            <Typography variant="h6" gutterBottom>Group Z-Scores</Typography>
+            <Grid container spacing={2}>
+              {data.groups.map((group: any) => (
+                <Grid item xs={12} md={6} key={group.group_name}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Typography variant="subtitle1" fontWeight="bold">{group.group_name}</Typography>
+                        <Chip
+                          label={`Z-score: ${group.z_score !== undefined ? group.z_score.toFixed(2) : 'N/A'}`}
+                          sx={{
+                            bgcolor:
+                              group.z_score > 0.5
+                                ? '#4caf50'
+                                : group.z_score < -0.5
+                                  ? '#f44336'
+                                  : '#bdbdbd',
+                            color: 'white',
+                            fontWeight: 'bold',
+                          }}
+                          size="small"
+                        />
+                      </Box>
+                      {/* Table of courses in this group */}
+                      <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Course</TableCell>
+                              <TableCell>Average GPA</TableCell>
+                              <TableCell>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  Z-Score (in Group)
+                                  <Tooltip title="Compares each course's average GPA to other courses in the same group. Positive = above group average, negative = below.">
+                                    <InfoOutlinedIcon fontSize="small" sx={{ color: '#1976d2', cursor: 'pointer' }} />
+                                  </Tooltip>
+                                </Box>
+                              </TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {(group.courses || []).map((courseCode: string) => {
+                              const course = (data.courses && data.courses[courseCode]) ||
+                                (data.course_list && data.course_list.find((c: any) => c.course_name === courseCode));
+                              const z = group.course_z_scores?.[courseCode];
+                              return (
+                                <TableRow key={courseCode}>
+                                  <TableCell>{courseCode}</TableCell>
+                                  <TableCell>
+                                    {course && course.average_gpa !== undefined
+                                      ? course.average_gpa.toFixed(2)
+                                      : 'N/A'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {z !== undefined ? (
+                                      <Tooltip
+                                        title={
+                                          z > 0.5
+                                            ? 'Above Group Average'
+                                            : z < -0.5
+                                              ? 'Below Group Average'
+                                              : 'Near Group Average'
+                                        }
+                                      >
+                                        <Chip
+                                          label={z.toFixed(2)}
+                                          icon={<InfoOutlinedIcon fontSize="small" />}
+                                          sx={{
+                                            bgcolor:
+                                              z > 0.5
+                                                ? '#4caf50'
+                                                : z < -0.5
+                                                  ? '#f44336'
+                                                  : '#bdbdbd',
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                            fontSize: 16,
+                                            minWidth: 60,
+                                          }}
+                                          size="medium"
+                                        />
+                                      </Tooltip>
+                                    ) : 'N/A'}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
 
         {/* Need Attention Students */}
         {data.improvement_lists && data.improvement_lists.work_list && (
@@ -376,16 +496,43 @@ export const DataDisplay: FC<DataDisplayProps> = ({
                     ))}
                 </TableBody>
               </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={data.improvement_lists.work_list.length}
+                rowsPerPage={workRowsPerPage}
+                page={workPage}
+                onPageChange={handleWorkPageChange}
+                onRowsPerPageChange={handleWorkRowsPerPageChange}
+                sx={{
+                  borderTop: '1px solid #e0e0e0',
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                  '.MuiTablePagination-toolbar': {
+                    bgcolor: 'inherit',
+                    borderRadius: 0,
+                    fontWeight: 'bold',
+                    minHeight: 40,
+                    paddingLeft: 2,
+                    paddingRight: 2,
+                  },
+                  '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+                    color: 'inherit',
+                    fontWeight: 'bold',
+                  },
+                  '.MuiTablePagination-actions button': {
+                    color: '#1976d2',
+                    fontWeight: 'bold',
+                    fontSize: 18,
+                  },
+                  '.MuiInputBase-root': {
+                    bgcolor: 'inherit',
+                    borderRadius: 0,
+                    fontWeight: 'bold',
+                  },
+                }}
+              />
             </TableContainer>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={data.improvement_lists.work_list.length}
-              rowsPerPage={workRowsPerPage}
-              page={workPage}
-              onPageChange={handleWorkPageChange}
-              onRowsPerPageChange={handleWorkRowsPerPageChange}
-            />
           </Box>
         )}
 
@@ -436,18 +583,46 @@ export const DataDisplay: FC<DataDisplayProps> = ({
                     ))}
                 </TableBody>
               </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={data.improvement_lists.good_list.length}
+                rowsPerPage={goodRowsPerPage}
+                page={goodPage}
+                onPageChange={handleGoodPageChange}
+                onRowsPerPageChange={handleGoodRowsPerPageChange}
+                sx={{
+                  borderTop: '1px solid #e0e0e0',
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                  '.MuiTablePagination-toolbar': {
+                    bgcolor: 'inherit',
+                    borderRadius: 0,
+                    fontWeight: 'bold',
+                    minHeight: 40,
+                    paddingLeft: 2,
+                    paddingRight: 2,
+                  },
+                  '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+                    color: 'inherit',
+                    fontWeight: 'bold',
+                  },
+                  '.MuiTablePagination-actions button': {
+                    color: '#1976d2',
+                    fontWeight: 'bold',
+                    fontSize: 18,
+                  },
+                  '.MuiInputBase-root': {
+                    bgcolor: 'inherit',
+                    borderRadius: 0,
+                    fontWeight: 'bold',
+                  },
+                }}
+              />
             </TableContainer>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={data.improvement_lists.good_list.length}
-              rowsPerPage={goodRowsPerPage}
-              page={goodPage}
-              onPageChange={handleGoodPageChange}
-              onRowsPerPageChange={handleGoodRowsPerPageChange}
-            />
           </Box>
         )}
+
       </Box>
     );
   };
@@ -476,27 +651,6 @@ export const DataDisplay: FC<DataDisplayProps> = ({
                         <Typography variant="body2">Students: {typeData.total_students}</Typography>
                         <Typography variant="body2">Avg GPA: {typeData.average_gpa.toFixed(2)}</Typography>
                       </Box>
-                      {/* Show only the group z-score for this level if available */}
-                      {data.groups && data.groups.length > 0 && (
-                        <Box mb={2}>
-                          {data.groups.map((g: any) =>
-                            g.courses.some((c: string) =>
-                              (typeData.courses || []).includes(c)
-                            ) ? (
-                              <Chip
-                                key={g.group_name}
-                                label={`${g.group_name} Z-score: ${g.z_score.toFixed(2)}`}
-                                sx={getChipStyles(g.z_score)}
-                                icon={
-                                  <Tooltip title="Group Z-score: Compares this group's GPA to all groups.">
-                                    <InfoOutlinedIcon fontSize="small" />
-                                  </Tooltip>
-                                }
-                              />
-                            ) : null
-                          )}
-                        </Box>
-                      )}
                       <ResponsiveContainer width="100%" minWidth={0} height={160}>
                         <BarChart data={Object.entries(typeData.grade_distribution).map(([key, value]) => ({ grade: key, count: value }))}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -644,6 +798,7 @@ export const DataDisplay: FC<DataDisplayProps> = ({
             </Grid>
           ))}
         </Grid>
+
       </Box>
     );
   };
@@ -664,6 +819,18 @@ export const DataDisplay: FC<DataDisplayProps> = ({
   const renderSectionsView = () => {
     if (!coursesList || coursesList.length === 0) {
       return <Alert severity="info">No section data available</Alert>;
+    }
+
+    // Build a map from section name to group z-score (if available)
+    const sectionGroupZMap: Record<string, { z: number, group: string }> = {};
+    if (data.groups && Array.isArray(data.groups)) {
+      data.groups.forEach((group: any) => {
+        if (group.section_group_z_scores) {
+          Object.entries(group.section_group_z_scores).forEach(([section, z]) => {
+            sectionGroupZMap[section] = { z: z as number, group: group.group_name };
+          });
+        }
+      });
     }
 
     return (
@@ -701,99 +868,135 @@ export const DataDisplay: FC<DataDisplayProps> = ({
 
         {coursesList
           .filter((course: any) => selectedCourse === 'all' || course.course_name === selectedCourse)
-          .map((course: any) => (
-            <Box key={course.course_name} mb={4}>
-              <Typography variant="h6" gutterBottom>
-                {course.course_name} Sections - {course.sections[0]?.credit_hours || 0} Credit Hours
-              </Typography>
+          // Deduplicate by section_name and collect group(s)
+          .map((course: any) => {
+            // Map of section_name -> {section, groups: Set}
+            const sectionMap = new Map<string, { section: any, groups: Set<string> }>();
+            if (data.groups && Array.isArray(data.groups)) {
+              data.groups.forEach((group: any) => {
+                if (group.sections) {
+                  group.sections.forEach((sectionName: string) => {
+                    const found = course.sections.find((s: any) => s.section_name === sectionName);
+                    if (found) {
+                      if (!sectionMap.has(sectionName)) {
+                        sectionMap.set(sectionName, { section: found, groups: new Set() });
+                      }
+                      sectionMap.get(sectionName)!.groups.add(group.group_name);
+                    }
+                  });
+                }
+              });
+            }
+            // Fallback: if no group info, just dedupe by section_name
+            if (sectionMap.size === 0) {
+              course.sections.forEach((s: any) => {
+                if (!sectionMap.has(s.section_name)) {
+                  sectionMap.set(s.section_name, { section: s, groups: new Set() });
+                }
+              });
+            }
+            return (
+              <Box key={course.course_name} mb={4}>
+                <Typography variant="h6" gutterBottom>
+                  {course.course_name} Sections - {course.sections[0]?.credit_hours || 0} Credit Hours
+                </Typography>
+                <Grid container spacing={2}>
+                  {Array.from(sectionMap.values()).map(({ section, groups }) => (
+                    <Grid item xs={12} md={6} lg={4} key={section.section_name}>
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Typography variant="subtitle1" fontWeight="bold">
+                            {section.section_name}
+                          </Typography>
+                          <Box display="flex" justifyContent="space-between" mb={1}>
+                            <Typography variant="body2">
+                              Students: {section.student_count}
+                            </Typography>
+                            <Typography variant="body2">
+                              Credits: {section.credit_hours}
+                            </Typography>
+                            <Typography variant="body2">
+                              Avg GPA: {section.average_gpa ? section.average_gpa.toFixed(2) : 'N/A'}
+                            </Typography>
+                          </Box>
+                          {/* Show group(s) */}
+                          {groups.size > 0 && (
+                            <Box mb={1}>
+                              <Typography variant="body2" color="textSecondary">
+                                Group(s): {[...groups].join(', ')}
+                              </Typography>
+                            </Box>
+                          )}
+                          {/* Z-Score Visual */}
+                          <Box display="flex" alignItems="center" mb={1}>
+                            <Typography variant="body2" sx={{ mr: 1 }}>
+                              Z-Score:
+                            </Typography>
+                            <Tooltip title="Section Z-score: Compares this section's GPA to other sections of the same course.">
+                              <Chip
+                                label={
+                                  section.z_score !== undefined
+                                    ? (section.z_score !== undefined ? section.z_score.toFixed(2) : 'N/A')
+                                    : 'N/A'
+                                }
+                                color={
+                                  section.z_score > 0.5
+                                    ? 'success'
+                                    : section.z_score < -0.5
+                                      ? 'error'
+                                      : 'default'
+                                }
+                                sx={{
+                                  fontWeight: 'bold',
+                                  bgcolor: getChipStyles(section.z_score).bgcolor,
+                                  color: getChipStyles(section.z_score).color,
+                                }}
+                                size="small"
+                                icon={
+                                  <InfoOutlinedIcon fontSize="small" />
+                                }
+                              />
+                            </Tooltip>
+                            <Typography variant="caption" sx={{ ml: 1, color: '#888' }}>
+                              {section.z_score > 0.5
+                                ? 'Above Avg'
+                                : section.z_score < -0.5
+                                  ? 'Below Avg'
+                                  : 'Near Avg'}
+                            </Typography>
+                          </Box>
 
-              <Grid container spacing={2}>
-                {course.sections.map((section: any) => (
-                  <Grid item xs={12} md={6} lg={4} key={section.section_name}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          {section.section_name}
-                        </Typography>
-                        <Box display="flex" justifyContent="space-between" mb={1}>
-                          <Typography variant="body2">
-                            Students: {section.student_count}
-                          </Typography>
-                          <Typography variant="body2">
-                            Credits: {section.credit_hours}
-                          </Typography>
-                          <Typography variant="body2">
-                            Avg GPA: {section.average_gpa ? section.average_gpa.toFixed(2) : 'N/A'}
-                          </Typography>
-                        </Box>
-                        {/* Z-Score Visual */}
-                        <Box display="flex" alignItems="center" mb={1}>
-                          <Typography variant="body2" sx={{ mr: 1 }}>
-                            Z-Score:
-                          </Typography>
-                          <Tooltip title="Section Z-score: Compares this section's GPA to other sections of the same course.">
-                            <Chip
-                              label={
-                                section.z_score !== undefined
-                                  ? (section.z_score !== undefined ? section.z_score.toFixed(2) : 'N/A')
-                                  : 'N/A'
-                              }
-                              color={
-                                section.z_score > 0.5
-                                  ? 'success'
-                                  : section.z_score < -0.5
-                                    ? 'error'
-                                    : 'default'
-                              }
-                              sx={{
-                                fontWeight: 'bold',
-                                bgcolor: getChipStyles(section.z_score).bgcolor,
-                                color: getChipStyles(section.z_score).color,
-                              }}
-                              size="small"
-                              icon={
-                                <InfoOutlinedIcon fontSize="small" />
-                              }
-                            />
-                          </Tooltip>
-                          <Typography variant="caption" sx={{ ml: 1, color: '#888' }}>
-                            {section.z_score > 0.5
-                              ? 'Above Avg'
-                              : section.z_score < -0.5
-                                ? 'Below Avg'
-                                : 'Near Avg'}
-                          </Typography>
-                        </Box>
-                        <ResponsiveContainer width="100%" height={200}>
-                          <BarChart
-                            data={(
-                              chartDetail === 'basic'
-                                ? Object.entries(section.grade_distribution)
-                                : Object.entries(section.detailed_grade_distribution)
-                            ).map(([key, value]) => ({ grade: key, count: value }))}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="grade" />
-                            <YAxis />
-                            <RechartsTooltip formatter={(value, name) => [`${value} students`, `Grade: ${name}`]} />
-                            <Bar dataKey="count" fill="#8884d8">
-                              {(
+                          <ResponsiveContainer width="100%" height={200}>
+                            <BarChart
+                              data={(
                                 chartDetail === 'basic'
                                   ? Object.entries(section.grade_distribution)
                                   : Object.entries(section.detailed_grade_distribution)
-                              ).map(([key], index) => (
-                                <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
-          ))}
+                              ).map(([key, value]) => ({ grade: key, count: value }))}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="grade" />
+                              <YAxis />
+                              <RechartsTooltip formatter={(value, name) => [`${value} students`, `Grade: ${name}`]} />
+                              <Bar dataKey="count" fill="#8884d8">
+                                {(
+                                  chartDetail === 'basic'
+                                    ? Object.entries(section.grade_distribution)
+                                    : Object.entries(section.detailed_grade_distribution)
+                                ).map(([key], index) => (
+                                  <Cell key={`cell-${index}`} fill={getGradeColor(key)} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+            );
+          })}
       </Box>
     );
   };
@@ -922,6 +1125,33 @@ export const DataDisplay: FC<DataDisplayProps> = ({
             page={page}
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
+            sx={{
+              borderTop: '1px solid #e0e0e0',
+              borderRadius: 0,
+              boxShadow: 'none',
+              '.MuiTablePagination-toolbar': {
+                bgcolor: 'inherit',
+                borderRadius: 0,
+                fontWeight: 'bold',
+                minHeight: 40,
+                paddingLeft: 2,
+                paddingRight: 2,
+              },
+              '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+                color: 'inherit',
+                fontWeight: 'bold',
+              },
+              '.MuiTablePagination-actions button': {
+                color: '#1976d2',
+                fontWeight: 'bold',
+                fontSize: 18,
+              },
+              '.MuiInputBase-root': {
+                bgcolor: 'inherit',
+                borderRadius: 0,
+                fontWeight: 'bold',
+              },
+            }}
           />
         </TableContainer>
       </Box>
