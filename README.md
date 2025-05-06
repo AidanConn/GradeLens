@@ -130,7 +130,7 @@ If you prefer not to install local Python or Node.js environments, you can run t
 
 1. **Clone the Repository** (if not already done)
    ```bash
-   git clone https://github.com/your-username/GradeLens.git
+   git clone https://github.com/AidanConn/GradeLens.git
    cd GradeLens
    ```
 2. **Build and Run Containers**  
