@@ -717,16 +717,16 @@ export const DataDisplay: FC<DataDisplayProps> = ({
 
         <Box mb={2}>
           <Alert severity="info" sx={{ mb: 2 }}>
-            <strong>What does G-score mean?</strong>
-            <Tooltip title="G-score compares a course's GPA to other courses at the same level (e.g., all 200-level courses).">
+            <strong>What does Z-score mean?</strong>
+            <Tooltip title="Z-score compares a course's GPA to other courses at the same level (e.g., all 200-level courses).">
               <InfoOutlinedIcon fontSize="small" sx={{ ml: 1, verticalAlign: 'middle' }} />
             </Tooltip>
             <br />
-            The G-score shown for each course is a z-score that compares the course's average GPA to other courses at the same level (e.g., all 200-level courses).<br />
+            The Z-score shown for each course is a z-score that compares the course's average GPA to other courses at the same level (e.g., all 200-level courses).<br />
             <ul style={{ margin: 0, paddingLeft: 18 }}>
-              <li><strong>G-score &gt; 0</strong>: Course GPA is above the average for its level.</li>
-              <li><strong>G-score &lt; 0</strong>: Course GPA is below the average for its level.</li>
-              <li><strong>G-score ≈ 0</strong>: Course GPA is near the average for its level.</li>
+              <li><strong>Z-score &gt; 0</strong>: Course GPA is above the average for its level.</li>
+              <li><strong>Z-score &lt; 0</strong>: Course GPA is below the average for its level.</li>
+              <li><strong>Z-score ≈ 0</strong>: Course GPA is near the average for its level.</li>
             </ul>
             This helps you quickly see which courses stand out (positively or negatively) compared to their peers.
           </Alert>
@@ -745,10 +745,10 @@ export const DataDisplay: FC<DataDisplayProps> = ({
                     <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                       <Typography variant="body2">Students: {course.total_students}</Typography>
                       <Typography variant="body2">Avg GPA: {course.average_gpa.toFixed(2)}</Typography>
-                      {/* G-score Chip */}
+                      {/* Z-score Chip */}
                       {course.g_score !== undefined && (
                         <Chip
-                          label={`G-score: ${course.g_score.toFixed(2)}`}
+                          label={`Z-score: ${course.g_score.toFixed(2)}`}
                           sx={{
                             bgcolor:
                               course.g_score > 0.5
@@ -761,7 +761,7 @@ export const DataDisplay: FC<DataDisplayProps> = ({
                           }}
                           size="small"
                           icon={
-                            <Tooltip title="Course G-score: Compares this course's GPA to other courses at the same level.">
+                            <Tooltip title="Course Z-score: Compares this course's GPA to other courses at the same level.">
                               <InfoOutlinedIcon fontSize="small" />
                             </Tooltip>
                           }
